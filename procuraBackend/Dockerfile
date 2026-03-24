@@ -10,7 +10,7 @@ COPY . .
 # Generate Prisma client first
 RUN npx prisma generate
 
-RUN npm run build
+RUN npx tsc
 
 EXPOSE 3006
 
