@@ -1,0 +1,286 @@
+.work-orders-page {
+  padding: 24px;
+}
+
+.work-orders-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.work-orders-page .page-header h1 {
+  margin: 0 0 4px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.work-orders-page .page-header p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.work-orders-page .filters {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.work-orders-page .filter-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  min-width: 180px;
+}
+
+.work-orders-page .table-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.work-orders-page .data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.work-orders-page .data-table th {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #444;
+  border-bottom: 1px solid #eee;
+}
+
+.work-orders-page .data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.work-orders-page .data-table tr:hover {
+  background: #fafafa;
+}
+
+.work-orders-page .data-table code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.work-orders-page .actions {
+  display: flex;
+  gap: 8px;
+}
+
+.work-orders-page .btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 16px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.work-orders-page .btn-icon:hover {
+  opacity: 1;
+}
+
+.work-orders-page .empty {
+  text-align: center;
+  color: #888;
+  padding: 40px 16px !important;
+}
+
+.work-orders-page .loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+/* Badge states */
+.badge--gray { background: #e0e0e0; color: #555; }
+.badge--blue { background: #e3f2fd; color: #1565c0; }
+.badge--yellow { background: #fff8e1; color: #f57f17; }
+.badge--green { background: #e8f5e9; color: #2e7d32; }
+.badge--orange { background: #fff3e0; color: #ef6c00; }
+.badge--red { background: #ffebee; color: #c62828; }
+
+/* Modal */
+.work-orders-page .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.work-orders-page .modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.work-orders-page .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+}
+
+.work-orders-page .modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.work-orders-page .modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+
+.work-orders-page .modal-body {
+  padding: 24px;
+}
+
+.work-orders-page .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+}
+
+.work-orders-page .form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.work-orders-page .form-row .form-group {
+  flex: 1;
+}
+
+.work-orders-page .form-group {
+  margin-bottom: 16px;
+}
+
+.work-orders-page .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.work-orders-page .form-group input,
+.work-orders-page .form-group select,
+.work-orders-page .form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.work-orders-page .form-group input:focus,
+.work-orders-page .form-group select:focus,
+.work-orders-page .form-group textarea:focus {
+  outline: none;
+  border-color: #4a90d9;
+}
+
+.work-orders-page .form-group input[readonly] {
+  background: #f5f5f5;
+}
+
+/* Items table */
+.work-orders-page .items-table {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.work-orders-page .items-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.work-orders-page .items-table th {
+  background: #f8f9fa;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.work-orders-page .items-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.work-orders-page .items-table input,
+.work-orders-page .items-table select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.work-orders-page .btn-primary {
+  background: #4a90d9;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.work-orders-page .btn-primary:hover {
+  background: #357abd;
+}
+
+.work-orders-page .btn-secondary {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.work-orders-page .btn-secondary:hover {
+  background: #e8e8e8;
+}

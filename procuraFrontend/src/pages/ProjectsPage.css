@@ -1,0 +1,135 @@
+.projects-page {
+  padding: 24px;
+}
+
+.projects-page .filters {
+  margin-bottom: 20px;
+}
+
+.projects-page .filters select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.projects-page .table-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.projects-page .table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.projects-page .table th,
+.projects-page .table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.projects-page .table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.projects-page .table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.projects-page .table .empty {
+  text-align: center;
+  color: #94a3b8;
+  padding: 40px;
+}
+
+.projects-page .btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 16px;
+}
+
+.projects-page .btn-icon:hover {
+  opacity: 0.7;
+}
+
+/* Modal */
+.projects-page .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.projects-page .modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.projects-page .modal h2 {
+  margin: 0 0 20px;
+  font-size: 20px;
+  color: #1e293b;
+}
+
+.projects-page .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.projects-page .form-group {
+  margin-bottom: 16px;
+}
+
+.projects-page .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.projects-page .form-group input,
+.projects-page .form-group select,
+.projects-page .form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.projects-page .form-group input:focus,
+.projects-page .form-group select:focus,
+.projects-page .form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.projects-page .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}

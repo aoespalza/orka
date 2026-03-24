@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  PURCHASE_MANAGER
+  PURCHASE_AGENT
+  REQUESTER
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum MaterialCategory {
+  CONSTRUCTION_MATERIALS
+  ELECTRICAL
+  PLUMBING
+  HARDWARE
+  PAINT
+  SAFETY_EQUIPMENT
+  TOOLS
+  MACHINERY
+  TECHNOLOGY
+  OTHER
+}
+
+enum UnitOfMeasure {
+  UNITS
+  KG
+  TON
+  METER
+  LITER
+  BOX
+  BAG
+  PALLET
+}
+
+// ============================================
+// USUARIOS Y AUTENTICACIÓN
+// ============================================
+
+// Perfiles - grupos de permisos
+model Profile {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  
+  // Permisos del perfil
+  permissions ProfilePermission[]
+  
+  // Usuarios con este perfil
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Permisos del sistema
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique  // Ej: materials_view, suppliers_create
+  name        String
+  description String?
+  category    String   // Ej: materials, suppliers, orders, reports, settings, users
+  isActive    Boolean  @default(true)
+  
+  // Perfiles que tienen este permiso
+  profiles    ProfilePermission[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Relación muchos a muchos entre Profile y Permission
+model ProfilePermission {
+  profileId     String
+  permissionId  String
+  grantedAt     DateTime @default(now())
+  
+  profile      Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  permission   Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@id([profileId, permissionId])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  email     String?
+  role      UserRole @default(REQUESTER)
+  name      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relación con perfil
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+
+  workOrders        WorkOrder[]
+}
+
+// ============================================
+// PROVEEDORES
+// ============================================
+
+model Supplier {
+  id          String         @id @default(uuid())
+  code        String         @unique
+  name        String
+  rut         String?        // NIT de la empresa (RUT)
+  nit         String?        // NIT - número de identificación tributaria
+  rutFile     String?        // Ruta al archivo PDF del RUT
+  address     String?
+  city        String?
+  country     String         @default("Chile")
+  phone       String?
+  email       String?
+  contactName String?        // Persona de contacto
+  contactPhone String?
+  contactEmail String?
+  bankAccount String?        // Cuenta bancaria
+  bankName    String?
+  paymentTerms String?       // Términos de pago (ej: "30 días")
+  notes       String?
+  categories  String[]       // Categorías de materiales que provee
+  status      SupplierStatus @default(ACTIVE)
+  rating      Float?         // Calificación (1-5)
+  
+  workOrders        WorkOrder[]
+  contracts         Contract[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// CATÁLOGO DE MATERIALES
+// ============================================
+
+model Material {
+  id            String          @id @default(uuid())
+  code          String          @unique
+  name          String
+  description   String?
+  category      MaterialCategory
+  unitOfMeasure UnitOfMeasure
+  defaultUnitPrice Float?
+  minStock      Float?
+  isActive      Boolean         @default(true)
+  
+  workOrderItems   WorkOrderItem[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// PROYECTOS
+// ============================================
+
+model Project {
+  id          String        @id @default(uuid())
+  code        String        @unique
+  name        String
+  description String?
+  address     String?
+  city        String?
+  region      String?
+  clientName  String?
+  clientRut   String?
+  startDate   DateTime?
+  endDate     DateTime?
+  deadline    DateTime?
+  status      ProjectStatus @default(PLANNING)
+  budget      Float?
+  actualCost  Float?
+  contactName String?
+  contactPhone String?
+  contactEmail String?
+  notes       String?
+  
+  // Órdenes de trabajo asociadas
+  workOrders  WorkOrder[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// ============================================
+// ÓRDENES DE TRABAJO
+// ============================================
+
+enum WorkOrderStatus {
+  DRAFT
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  SUSPENDED
+  CANCELLED
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentType {
+  FIJO
+  ANTICIPO
+  POR_AVANCE
+  MIXTO
+}
+
+model WorkOrder {
+  id              String         @id @default(uuid())
+  code            String         @unique
+  supplierId      String
+  title           String
+  description     String?
+  
+  // Relación con Proyecto
+  projectId       String?
+  project         Project?       @relation(fields: [projectId], references: [id])
+  
+  // Fechas y plazos
+  startDate       DateTime?
+  endDate         DateTime?
+  executionDays   Int?           // Plazo de ejecución en días
+  
+  // Valores
+  subtotal        Float          @default(0)
+  iva             Float          @default(0)
+  totalValue      Float          @default(0)
+  
+  // Forma de pago
+  paymentType     PaymentType    @default(FIJO)
+  paymentTerms    String?        // Términos de pago (ej: "50% anticipo, 50% entrega")
+  
+  // Estado
+  status          WorkOrderStatus @default(DRAFT)
+  observations    String?
+  
+  // Relaciones
+  supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  items           WorkOrderItem[]
+  contracts       Contract[]
+  
+  createdById     String
+  createdBy       User           @relation(fields: [createdById], references: [id])
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model WorkOrderItem {
+  id              String     @id @default(uuid())
+  workOrderId     String
+  description     String
+  quantity        Float      @default(1)
+  unit            String
+  unitPrice       Float
+  iva             Boolean    @default(false)  // Indica si tiene IVA
+  totalPrice      Float      @default(0)
+  observations    String?
+  
+  // AIU - Administración, Imprevistos, Utilidad (normativa colombiana construcción civil)
+  applyAiu        Boolean    @default(false)  // Indica si aplica AIU a este ítem
+  aiuAdministration Float    @default(0)     // Porcentaje Administración (ej: 10%)
+  aiuImprevistos  Float      @default(0)      // Porcentaje Imprevistos (ej: 3%)
+  aiuUtilidad     Float      @default(0)      // Porcentaje Utilidad (ej: 8%)
+  aiuTotal        Float      @default(0)      // Valor AIU calculado
+  
+  workOrder       WorkOrder  @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  materialId      String?
+  material        Material?  @relation(fields: [materialId], references: [id])
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+// Enum para estado del contrato
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  COMPLETED
+  CANCELLED
+}
+
+// Enum para campo FIC
+enum FicStatus {
+  SI
+  NO
+  FIRMA
+}
+
+// Modelo Contract
+model Contract {
+  id              String         @id @default(uuid())
+  code            String        @unique
+  
+  // Relaciones
+  workOrderId     String?
+  workOrder       WorkOrder?     @relation(fields: [workOrderId], references: [id])
+  supplierId      String
+  supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  
+  // Campos principales
+  startDate       DateTime?
+  endDate         DateTime?
+  value           Float          @default(0)
+  
+  // Checklist de documentos
+  docContratoFirmado String       @default("NO")  // SI, NO
+  docRequierePoliza  String       @default("N/A") // SI, NO, N/A
+  
+  // FIC
+  fic             FicStatus      @default(NO)
+  
+  // Acta de inicio
+  actaStartDate   DateTime?      // Fecha inicio del acta
+  actaEndDate     DateTime?      // Fecha fin del acta
+  
+  // OtroSí
+  otroSiNumber    Int?           // Número de otro sí
+  otroSiEndDate   DateTime?      // Fecha final del otro sí
+  otroSiValue     Float          @default(0)  // Valor adicional del otro sí
+  
+  // Valores calculados
+  finalValue      Float          @default(0)  // Valor inicial + otro sí
+  advancePayment  Float          @default(0)  // Anticipo sobre contrato inicial
+  
+  // Estado y observaciones
+  status          ContractStatus @default(DRAFT)
+  observations    String?
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+// ============================================
+// SETTINGS
+// ============================================
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  category  String   @default("general")
+  isSecret  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

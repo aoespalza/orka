@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: orka_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orka_reducida
+    ports:
+      - "5434:5432"
+    volumes:
+      - orka_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./procuraBackend
+    container_name: orka_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/orka_reducida?schema=public"
+      JWT_SECRET: "orka-secret-key-change-in-production"
+      JWT_EXPIRES_IN: "24h"
+      PORT: "3006"
+      NODE_ENV: "development"
+    ports:
+      - "3006:3006"
+
+  frontend:
+    build: ./procuraFrontend
+    container_name: orka_frontend
+    ports:
+      - "5174:80"
+    depends_on:
+      - backend
+
+volumes:
+  orka_data:
