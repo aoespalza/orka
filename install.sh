@@ -125,7 +125,7 @@ fi
 info "Construyendo servicios (primera vez puede tardar)..."
 
 cd /opt/orka
-docker-compose up -d --build
+docker compose up -d --build
 
 # ============================================
 # 9. Verificar servicios
@@ -173,7 +173,7 @@ echo "Comandos útiles:"
 echo "  - Ver logs:     docker-compose logs -f"
 echo "  - Reiniciar:    docker-compose restart"
 echo "  - Detener:      docker-compose down"
-echo "  - Actualizar:   cd /opt/orka && git pull && docker-compose up -d --build"
+echo "  - Actualizar:   cd /opt/orka && git pull && docker compose up -d --build"
 echo ""
 echo "Credenciales por defecto:"
 echo "  - Usuario: admin"

@@ -19,7 +19,7 @@ git stash
 git pull origin master
 
 # Reconstruir servicios
-docker-compose up -d --build
+docker compose up -d --build
 
 # Verificar que todo esté corriendo
 echo ""
