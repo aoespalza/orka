@@ -15,8 +15,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    sysctls:
-      - net.ipv4.ip_unprivileged_port_start=0
 
   backend:
     build: ./procuraBackend
@@ -32,11 +30,6 @@ services:
       NODE_ENV: "development"
     ports:
       - "3006:3006"
-    sysctls:
-      - net.ipv4.ip_unprivileged_port_start=0
-    security_opt:
-      - seccomp:unconfined
-    privileged: true
 
   frontend:
     build: ./procuraFrontend
@@ -45,9 +38,6 @@ services:
       - "5174:80"
     depends_on:
       - backend
-    security_opt:
-      - seccomp:unconfined
-    privileged: true
 
 volumes:
   orka_data:
