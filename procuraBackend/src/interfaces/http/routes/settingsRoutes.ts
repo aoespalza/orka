@@ -124,9 +124,15 @@ router.put('/email', authenticate, authorize('ADMIN'), async (req, res) => {
     await settingsRepository.upsert({ key: 'smtp_port', value: String(port || 587), category: 'smtp' });
     await settingsRepository.upsert({ key: 'smtp_secure', value: secure ? 'true' : 'false', category: 'smtp' });
     await settingsRepository.upsert({ key: 'smtp_user', value: cleanUser, category: 'smtp' });
+    
+    // Solo actualizar contraseña si se proporciona una nueva
     if (cleanPassword) {
       await settingsRepository.upsert({ key: 'smtp_pass', value: cleanPassword, category: 'smtp', isSecret: true });
+      console.log('[SETTINGS] Contraseña actualizada');
+    } else {
+      console.log('[SETTINGS] Contraseña no proporcionada, manteniendo existente');
     }
+    
     if (cleanFrom) {
       await settingsRepository.upsert({ key: 'smtp_from', value: cleanFrom, category: 'smtp' });
     }
@@ -229,6 +235,17 @@ router.put('/:key', authenticate, authorize('ADMIN'), async (req, res) => {
     res.json({ key: setting.key, value: setting.isSecret ? '••••••••' : setting.value });
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar configuración' });
+  }
+});
+
+// Delete single setting
+router.delete('/:key', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const { key } = req.params;
+    await settingsRepository.delete(key);
+    res.json({ success: true, message: 'Configuración eliminada' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar configuración' });
   }
 });
 

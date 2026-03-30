@@ -256,8 +256,13 @@ class ApiClient {
     return Array.isArray(response.data) ? response.data : (response.data?.data || []);
   }
 
-  async updateSetting(key: string, value: string): Promise<any> {
-    const response = await this.client.put<any>(`/settings/${key}`, { value });
+  async updateSetting(key: string, value: string, category?: string): Promise<any> {
+    const response = await this.client.put<any>(`/settings/${key}`, { value, category });
+    return response.data;
+  }
+
+  async deleteSetting(key: string): Promise<any> {
+    const response = await this.client.delete<any>(`/settings/${key}`);
     return response.data;
   }
 

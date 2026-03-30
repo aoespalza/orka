@@ -57,6 +57,19 @@ export default function WorkOrdersPage() {
     loadWorkOrders(); loadSuppliers(); loadProjects(); loadCompanySettings();
   }, [statusFilter]);
 
+  // Effect separado para abrir orden desde el dashboard
+  useEffect(() => {
+    const openWorkOrderId = localStorage.getItem('PROCURA_OPEN_WORKORDER');
+    if (openWorkOrderId && workOrders.length > 0) {
+      localStorage.removeItem('PROCURA_OPEN_WORKORDER');
+      const workOrder = workOrders.find(wo => wo.id === openWorkOrderId);
+      if (workOrder) {
+        setViewingWorkOrder(workOrder);
+        setShowViewModal(true);
+      }
+    }
+  }, [workOrders]);
+
   const handleExportPDF = (workOrder: WorkOrder) => {
     generateWorkOrderPDF(workOrder, {
       name: companyInfo.COMPANY_NAME || 'Gestiona',
@@ -205,8 +218,17 @@ export default function WorkOrdersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Calcular automáticamente el plazo en días
+      let calculatedDays = formData.executionDays;
+      if (formData.startDate && formData.endDate) {
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        calculatedDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
+
       const dataToSend = {
         ...formData,
+        executionDays: calculatedDays,
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
       };
@@ -353,6 +375,23 @@ export default function WorkOrdersPage() {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(value);
   };
 
+  // Función para obtener el color del semáforo según días restantes
+  const getTrafficLight = (days: number | null | undefined) => {
+    if (days === null || days === undefined) {
+      return { color: '#9ca3af', label: 'Sin fecha', icon: '⚪' }; // Gris
+    }
+    if (days < 0) {
+      return { color: '#dc2626', label: 'Vencido', icon: '🔴' }; // Rojo - Vencido
+    }
+    if (days <= 30) {
+      return { color: '#dc2626', label: `${days} días`, icon: '🔴' }; // Rojo - Crítico
+    }
+    if (days <= 90) {
+      return { color: '#f59e0b', label: `${days} días`, icon: '🟡' }; // Amarillo - Advertencia
+    }
+    return { color: '#22c55e', label: `${days} días`, icon: '🟢' }; // Verde - OK
+  };
+
   return (
     <div className="work-orders-page">
       <div className="page-header">
@@ -385,6 +424,7 @@ export default function WorkOrdersPage() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>🔔</th>
                 <th>Código</th>
                 <th>Título</th>
                 <th>Proveedor</th>
@@ -397,8 +437,22 @@ export default function WorkOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {(workOrders || []).map(wo => (
+              {(workOrders || []).map(wo => {
+                const trafficLight = getTrafficLight(wo.daysUntilExpiration);
+                return (
                 <tr key={wo.id}>
+                  <td>
+                    <span 
+                      style={{ 
+                        color: trafficLight.color, 
+                        fontSize: '18px',
+                        cursor: 'help'
+                      }} 
+                      title={trafficLight.label}
+                    >
+                      {trafficLight.icon}
+                    </span>
+                  </td>
                   <td><code>{wo.code}</code></td>
                   <td>{wo.title}</td>
                   <td>{wo.supplierName || '-'}</td>
@@ -425,10 +479,11 @@ export default function WorkOrdersPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
               {(workOrders || []).length === 0 && (
                 <tr>
-                  <td colSpan={9} className="empty">No se encontraron órdenes de trabajo</td>
+                  <td colSpan={10} className="empty">No se encontraron órdenes de trabajo</td>
                 </tr>
               )}
             </tbody>
@@ -512,7 +567,10 @@ export default function WorkOrdersPage() {
                     <input
                       type="date"
                       value={formData.startDate ? String(formData.startDate).split('T')[0] : ''}
-                      onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                      onChange={e => {
+                        const newStartDate = e.target.value;
+                        setFormData({ ...formData, startDate: newStartDate });
+                      }}
                     />
                   </div>
                   <div className="form-group">
@@ -520,15 +578,28 @@ export default function WorkOrdersPage() {
                     <input
                       type="date"
                       value={formData.endDate ? String(formData.endDate).split('T')[0] : ''}
-                      onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                      onChange={e => {
+                        const newEndDate = e.target.value;
+                        setFormData({ ...formData, endDate: newEndDate });
+                      }}
                     />
                   </div>
                   <div className="form-group">
                     <label>Plazo (días)</label>
                     <input
                       type="number"
-                      value={formData.executionDays || ''}
-                      onChange={e => setFormData({ ...formData, executionDays: e.target.value ? parseInt(e.target.value) : undefined })}
+                      value={(() => {
+                        if (formData.startDate && formData.endDate) {
+                          const start = new Date(formData.startDate);
+                          const end = new Date(formData.endDate);
+                          const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          return diff > 0 ? diff : 0;
+                        }
+                        return formData.executionDays || '';
+                      })()}
+                      readOnly
+                      style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                      title="Se calcula automáticamente entre fecha de inicio y fin"
                     />
                   </div>
                 </div>

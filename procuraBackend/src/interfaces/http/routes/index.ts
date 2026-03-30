@@ -10,6 +10,7 @@ import settingsRoutes from './settingsRoutes';
 import uploadRoutes from './uploadRoutes';
 import { permissionController } from './permissionRoutes';
 import { profileController } from './profileRoutes';
+import notificationRoutes, { sendExpiryReminders, getPreview, getStatus } from './notificationRoutes';
 import { authenticate, authorize } from '../../../shared/middleware/auth';
 
 const router = Router();
@@ -107,5 +108,10 @@ router.patch('/contracts/:id/status', authenticate, authorize('ADMIN', 'PURCHASE
 
 // Settings - usar el router de settingsRoutes
 router.use('/settings', settingsRoutes);
+
+// Notificaciones
+router.post('/notifications/send-expiry-reminders', authenticate, authorize('ADMIN'), sendExpiryReminders);
+router.get('/notifications/preview', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), getPreview);
+router.get('/notifications/status', authenticate, authorize('ADMIN'), getStatus);
 
 export default router;

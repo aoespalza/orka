@@ -24,6 +24,14 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Notifications state
+  const [notificationPreview, setNotificationPreview] = useState<any>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isSendingNotifications, setIsSendingNotifications] = useState(false);
+  const [notificationDays, setNotificationDays] = useState(7);
+  const [notificationRecipients, setNotificationRecipients] = useState<string[]>([]);
+  const [newRecipientEmail, setNewRecipientEmail] = useState('');
+
   // Users, Profiles, Permissions state
   const [users, setUsers] = useState<User[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -42,10 +50,97 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === 'users' || activeTab === 'profiles' || activeTab === 'permissions') {
       loadTabData();
+    } else if (activeTab === 'notifications') {
+      loadNotificationPreview();
+      loadNotificationRecipients();
     } else {
       loadSettings();
     }
   }, [activeTab]);
+
+  // Notifications
+  const loadNotificationPreview = async () => {
+    setIsLoadingPreview(true);
+    try {
+      const preview = await api.getNotificationPreview(notificationDays);
+      setNotificationPreview(preview);
+    } catch (e) {
+      console.error('Error loading notification preview:', e);
+      setMessage({ type: 'error', text: 'Error al cargar preview de notificaciones' });
+    }
+    setIsLoadingPreview(false);
+  };
+
+  const handleSendNotifications = async () => {
+    if (!confirm('¿Enviar notificaciones de vencimiento a todos los destinatarios?')) return;
+    setIsSendingNotifications(true);
+    try {
+      const result = await api.sendExpiryReminders();
+      if (result.success) {
+        setMessage({ type: 'success', text: `Notificaciones enviadas: ${result.details?.emailsSent || 0} emails` });
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Error al enviar notificaciones' });
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || error.response?.data?.error || 'Error al enviar notificaciones' });
+    }
+    setTimeout(() => setMessage(null), 5000);
+    setIsSendingNotifications(false);
+  };
+
+  // Notification recipients management
+  const loadNotificationRecipients = async () => {
+    try {
+      const settingsData = await api.getSettingsByCategory('notification');
+      const emails = settingsData.filter((s: any) => s.key.startsWith('notification_email_')).map((s: any) => s.value);
+      setNotificationRecipients(emails);
+    } catch (e) {
+      console.error('Error loading recipients:', e);
+    }
+  };
+
+  const handleAddRecipient = async () => {
+    const email = newRecipientEmail.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setMessage({ type: 'error', text: 'Email inválido' });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    if (notificationRecipients.includes(email)) {
+      setMessage({ type: 'error', text: 'Este email ya está agregado' });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    try {
+      const key = `notification_email_${Date.now()}`;
+      await api.updateSetting(key, email, 'notification');
+      setNotificationRecipients([...notificationRecipients, email]);
+      setNewRecipientEmail('');
+      setMessage({ type: 'success', text: 'Destinatario agregado' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error al agregar destinatario' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleRemoveRecipient = async (email: string) => {
+    if (!confirm(`¿Eliminar ${email} de los destinatarios?`)) return;
+    try {
+      const settingsData = await api.getSettingsByCategory('notification');
+      const setting = settingsData.find((s: any) => s.value === email);
+      if (setting) {
+        await api.deleteSetting(setting.key);
+      }
+      setNotificationRecipients(notificationRecipients.filter(e => e !== email));
+      setMessage({ type: 'success', text: 'Destinatario eliminado' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error al eliminar destinatario' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   const loadTabData = async () => {
     setIsLoadingData(true);
@@ -98,7 +193,7 @@ export default function SettingsPage() {
           port: parseInt(settings['EMAIL_PORT']?.value || '587'),
           secure: settings['EMAIL_SECURE']?.value === 'true',
           user: (settings['EMAIL_USER']?.value || '').trim(),
-          password: settings['EMAIL_PASS']?.value || undefined,
+          password: settings['EMAIL_PASS']?.value && settings['EMAIL_PASS']?.value !== '••••••••' ? settings['EMAIL_PASS']?.value : undefined,
           from: (settings['EMAIL_FROM']?.value || '').trim()
         };
         await api.saveEmailSettings(emailSettings);
@@ -269,6 +364,191 @@ export default function SettingsPage() {
     </div>
   );
 
+  const renderNotificationsTab = () => (
+    <div className="settings-section">
+      <h3>Notificaciones de Vencimiento</h3>
+      <p className="settings-description">Envía recordatorios sobre contratos y órdenes de trabajo próximos a vencer.</p>
+      
+      {/* Destinatarios de notificaciones */}
+      <div className="notification-recipients">
+        <h4>📧 Destinatarios de Notificaciones</h4>
+        <p className="help-text">Agrega los correos electrónicos que recibirán los recordatorios de vencimiento.</p>
+        
+        <div className="add-recipient-form">
+          <input
+            type="email"
+            placeholder="Agregar correo electrónico..."
+            value={newRecipientEmail}
+            onChange={(e) => setNewRecipientEmail(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleAddRecipient()}
+            style={{ maxWidth: '300px' }}
+          />
+          <button className="btn-primary" onClick={handleAddRecipient}>
+            ➕ Agregar
+          </button>
+        </div>
+
+        {notificationRecipients.length > 0 ? (
+          <div className="recipients-list">
+            {notificationRecipients.map((email, index) => (
+              <div key={index} className="recipient-item">
+                <span className="recipient-email">📧 {email}</span>
+                <button 
+                  className="btn-remove" 
+                  onClick={() => handleRemoveRecipient(email)}
+                  title="Eliminar destinatario"
+                >
+                  ❌
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="no-recipients">No hay destinatarios agregados. Agrega al menos uno para recibir notificaciones.</p>
+        )}
+      </div>
+
+      <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
+
+      <div className="notification-config">
+        <div className="form-group">
+          <label>Días de anticipación</label>
+          <div className="form-row">
+            <input
+              type="number"
+              min="1"
+              max="90"
+              value={notificationDays}
+              onChange={(e) => setNotificationDays(parseInt(e.target.value) || 7)}
+              style={{ maxWidth: '100px' }}
+            />
+            <button 
+              className="btn-secondary" 
+              onClick={loadNotificationPreview}
+              disabled={isLoadingPreview}
+            >
+              {isLoadingPreview ? 'Cargando...' : '🔄 Actualizar Preview'}
+            </button>
+          </div>
+          <span className="help-text">Cantidad de días hacia adelante para buscar items próximos a vencer</span>
+        </div>
+
+        <div className="notification-actions">
+          <button 
+            className="btn-primary" 
+            onClick={handleSendNotifications}
+            disabled={isSendingNotifications || notificationRecipients.length === 0}
+          >
+            {isSendingNotifications ? 'Enviando...' : '🔔 Enviar Notificaciones Ahora'}
+          </button>
+        </div>
+      </div>
+
+      {isLoadingPreview ? (
+        <div className="loading">Cargando preview...</div>
+      ) : notificationPreview ? (
+        <div className="notification-preview">
+          <div className="preview-summary">
+            <div className="summary-card summary-card--contracts">
+              <span className="summary-icon">📜</span>
+              <div className="summary-content">
+                <span className="summary-count">{notificationPreview.contracts?.length || 0}</span>
+                <span className="summary-label">Contratos</span>
+              </div>
+            </div>
+            <div className="summary-card summary-card--workorders">
+              <span className="summary-icon">🔧</span>
+              <div className="summary-content">
+                <span className="summary-count">{notificationPreview.workOrders?.length || 0}</span>
+                <span className="summary-label">Órdenes de Trabajo</span>
+              </div>
+            </div>
+            <div className="summary-card summary-card--total">
+              <span className="summary-icon">📊</span>
+              <div className="summary-content">
+                <span className="summary-count">{notificationPreview.total || 0}</span>
+                <span className="summary-label">Total</span>
+              </div>
+            </div>
+          </div>
+
+          {notificationPreview.contracts?.length > 0 && (
+            <div className="preview-section">
+              <h4>📜 Contratos próximos a vencer</h4>
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Proveedor</th>
+                    <th>Fecha Fin</th>
+                    <th>Días</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notificationPreview.contracts.map((contract: any) => (
+                    <tr key={contract.id} className={contract.daysUntilExpiration <= 3 ? 'row-critical' : contract.daysUntilExpiration <= 7 ? 'row-warning' : ''}>
+                      <td><strong>{contract.code}</strong></td>
+                      <td>{contract.supplierName}</td>
+                      <td>{new Date(contract.endDate).toLocaleDateString('es-CL')}</td>
+                      <td className={contract.daysUntilExpiration <= 3 ? 'text-critical' : contract.daysUntilExpiration <= 7 ? 'text-warning' : 'text-ok'}>
+                        {contract.daysUntilExpiration}
+                      </td>
+                      <td>${contract.finalValue?.toLocaleString('es-CL') || '0'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {notificationPreview.workOrders?.length > 0 && (
+            <div className="preview-section">
+              <h4>🔧 Órdenes de Trabajo próximas a vencer</h4>
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Título</th>
+                    <th>Proveedor</th>
+                    <th>Fecha Fin</th>
+                    <th>Días</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notificationPreview.workOrders.map((wo: any) => (
+                    <tr key={wo.id} className={wo.daysUntilExpiration <= 3 ? 'row-critical' : wo.daysUntilExpiration <= 7 ? 'row-warning' : ''}>
+                      <td><strong>{wo.code}</strong></td>
+                      <td>{wo.title}</td>
+                      <td>{wo.supplierName}</td>
+                      <td>{new Date(wo.endDate).toLocaleDateString('es-CL')}</td>
+                      <td className={wo.daysUntilExpiration <= 3 ? 'text-critical' : wo.daysUntilExpiration <= 7 ? 'text-warning' : 'text-ok'}>
+                        {wo.daysUntilExpiration}
+                      </td>
+                      <td>${wo.totalValue?.toLocaleString('es-CL') || '0'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {notificationPreview.total === 0 && (
+            <div className="preview-empty">
+              <span className="empty-icon">✅</span>
+              <p>No hay contratos ni órdenes de trabajo próximos a vencer en los próximos {notificationDays} días.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="preview-empty">
+          <p>Haz clic en "Actualizar Preview" para ver los items próximos a vencer.</p>
+        </div>
+      )}
+    </div>
+  );
+
   const renderEmailSettings = () => (
     <div className="settings-section">
       <h3>Configuración de Correo Electrónico</h3>
@@ -279,7 +559,7 @@ export default function SettingsPage() {
         <input
           type="text"
           value={settings['EMAIL_HOST']?.value || ''}
-          onChange={(e) => setSettings(prev => ({ ...prev, EMAIL_HOST: { ...prev['EMAIL_HOST'], value: e.target.value } }))}
+          onChange={(e) => setSettings(prev => ({ ...prev, EMAIL_HOST: { ...prev['EMAIL_HOST'], value: e.target.value.trim() } }))}
           placeholder="smtp.gmail.com"
         />
         <span className="help-text">{settings['EMAIL_HOST']?.description}</span>
@@ -347,12 +627,17 @@ export default function SettingsPage() {
           onClick={async () => {
             setIsSaving(true);
             try {
+              // Solo enviar contraseña si no es el valor de máscara
+              const password = settings['EMAIL_PASS']?.value && settings['EMAIL_PASS']?.value !== '••••••••' 
+                ? settings['EMAIL_PASS']?.value 
+                : undefined;
+              
               const emailSettings = {
                 host: settings['EMAIL_HOST']?.value || '',
                 port: parseInt(settings['EMAIL_PORT']?.value || '587'),
                 secure: settings['EMAIL_SECURE']?.value === 'true',
                 user: settings['EMAIL_USER']?.value || '',
-                password: settings['EMAIL_PASS']?.value || undefined,
+                password: password,
                 from: settings['EMAIL_FROM']?.value || ''
               };
               await api.saveEmailSettings(emailSettings);
@@ -557,6 +842,12 @@ export default function SettingsPage() {
         >
           🔑 Permisos
         </button>
+        <button 
+          className={`tab ${activeTab === 'notifications' ? 'tab--active' : ''}`}
+          onClick={() => setActiveTab('notifications')}
+        >
+          🔔 Notificaciones
+        </button>
       </div>
 
       <div className="settings-content">
@@ -570,6 +861,7 @@ export default function SettingsPage() {
             {activeTab === 'users' && renderUsersTab()}
             {activeTab === 'profiles' && renderProfilesTab()}
             {activeTab === 'permissions' && renderPermissionsTab()}
+            {activeTab === 'notifications' && renderNotificationsTab()}
           </>
         )}
       </div>
