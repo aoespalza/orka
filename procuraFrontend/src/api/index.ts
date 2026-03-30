@@ -402,6 +402,25 @@ class ApiClient {
     return response.data;
   }
 
+  // ============================================
+  // NOTIFICATIONS - Notificaciones
+  // ============================================
+
+  async getNotificationPreview(days: number = 7): Promise<any> {
+    const response = await this.client.get<any>(`/notifications/preview?days=${days}`);
+    return response.data;
+  }
+
+  async sendExpiryReminders(): Promise<any> {
+    const response = await this.client.post<any>('/notifications/send-expiry-reminders');
+    return response.data;
+  }
+
+  async getNotificationStatus(): Promise<any> {
+    const response = await this.client.get<any>('/notifications/status');
+    return response.data;
+  }
+
 }
 
 export const api = new ApiClient();

@@ -1,6 +1,26 @@
 export type ContractStatus = 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'COMPLETED' | 'CANCELLED';
 export type FicStatus = 'SI' | 'NO' | 'FIRMA';
 
+export interface ContractItem {
+  id: string;
+  contractId: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  iva: boolean;
+  totalPrice: number;
+  observations?: string | null;
+  // AIU - Administración, Imprevistos, Utilidad
+  applyAiu: boolean;
+  aiuAdministration: number;
+  aiuImprevistos: number;
+  aiuUtilidad: number;
+  aiuTotal: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Contract {
   id: string;
   code: string;
@@ -12,6 +32,8 @@ export interface Contract {
   startDate?: string | null;
   endDate?: string | null;
   value: number;
+  subtotal: number;
+  iva: number;
   fic: FicStatus;
   actaStartDate?: string | null;
   actaEndDate?: string | null;
@@ -22,8 +44,24 @@ export interface Contract {
   advancePayment: number;
   status: ContractStatus;
   observations?: string | null;
+  items?: ContractItem[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateContractItemDTO {
+  materialId?: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  iva?: boolean;
+  observations?: string;
+  // AIU
+  applyAiu?: boolean;
+  aiuAdministration?: number;
+  aiuImprevistos?: number;
+  aiuUtilidad?: number;
 }
 
 export interface CreateContractDTO {
@@ -44,6 +82,8 @@ export interface CreateContractDTO {
   // Checklist documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
+  // Items
+  items?: CreateContractItemDTO[];
 }
 
 export interface UpdateContractDTO {
@@ -64,6 +104,8 @@ export interface UpdateContractDTO {
   // Checklist documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
+  // Items
+  items?: CreateContractItemDTO[];
 }
 
 export interface ContractFilters {

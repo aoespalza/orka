@@ -8,11 +8,42 @@ import {
 export class WorkOrderRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async findAll(): Promise<WorkOrder[]> {
-    return this.prisma.workOrder.findMany({
+  async findAll(): Promise<any[]> {
+    const workOrders = await this.prisma.workOrder.findMany({
       include: { supplier: true, items: true, project: true },
       orderBy: { createdAt: 'desc' }
     });
+
+    // Calcular días hasta vencimiento y agregar como campo calculado
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const workOrdersWithDays = workOrders.map(workOrder => {
+      let daysUntilExpiration: number | null = null;
+      
+      if (workOrder.endDate) {
+        const endDate = new Date(workOrder.endDate);
+        endDate.setHours(0, 0, 0, 0);
+        const diffTime = endDate.getTime() - today.getTime();
+        daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+
+      return {
+        ...workOrder,
+        daysUntilExpiration
+      };
+    });
+
+    // Ordenar del más crítico al más lejano (menor días primero)
+    // Los null (sin fecha) van al final
+    workOrdersWithDays.sort((a, b) => {
+      if (a.daysUntilExpiration === null && b.daysUntilExpiration === null) return 0;
+      if (a.daysUntilExpiration === null) return 1;
+      if (b.daysUntilExpiration === null) return -1;
+      return a.daysUntilExpiration - b.daysUntilExpiration;
+    });
+
+    return workOrdersWithDays;
   }
 
   async findById(id: string): Promise<WorkOrder | null> {

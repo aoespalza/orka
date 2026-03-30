@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
-import type { Contract, CreateContractDTO, Supplier, ContractStatus } from '../types';
+import type { Contract, CreateContractDTO, CreateContractItemDTO, Supplier, ContractStatus } from '../types';
 import { generateContractPDF } from '../utils/pdfGenerator';
 import './ContractsPage.css';
 
@@ -30,6 +30,18 @@ export default function ContractsPage() {
   useEffect(() => {
     loadContracts(); loadSuppliers(); loadCompanySettings();
   }, [statusFilter]);
+
+  // Effect para abrir contrato desde el dashboard
+  useEffect(() => {
+    const openContractId = localStorage.getItem('PROCURA_OPEN_CONTRACT');
+    if (openContractId && contracts.length > 0) {
+      localStorage.removeItem('PROCURA_OPEN_CONTRACT');
+      const contract = contracts.find(c => c.id === openContractId);
+      if (contract) {
+        handleEdit(contract);
+      }
+    }
+  }, [contracts]);
 
   const loadCompanySettings = async () => {
     try {
@@ -72,7 +84,22 @@ export default function ContractsPage() {
     status: 'DRAFT',
     observations: '',
     docContratoFirmado: 'NO',
-    docRequierePoliza: 'N/A'
+    docRequierePoliza: 'N/A',
+    items: []
+  });
+
+  // Estado para items del contrato
+  const [contractItems, setContractItems] = useState<CreateContractItemDTO[]>([]);
+  const [newItem, setNewItem] = useState<CreateContractItemDTO>({
+    description: '',
+    quantity: 1,
+    unit: 'UNITS',
+    unitPrice: 0,
+    iva: false,
+    applyAiu: false,
+    aiuAdministration: 0,
+    aiuImprevistos: 0,
+    aiuUtilidad: 0
   });
 
   useEffect(() => {
@@ -102,21 +129,6 @@ export default function ContractsPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingContract) {
-        await api.updateContract(editingContract.id, formData);
-      } else
-        await api.createContract(formData);
-      setShowModal(false);
-      loadContracts();
-      resetForm();
-    } catch (error) {
-      console.error('Failed to save contract:', error);
-    }
-  };
-
   const handleEdit = (contract: Contract) => {
     setEditingContract(contract);
     setFormData({
@@ -135,8 +147,34 @@ export default function ContractsPage() {
       status: contract.status,
       observations: contract.observations || '',
       docContratoFirmado: contract.docContratoFirmado || 'NO',
-      docRequierePoliza: contract.docRequierePoliza || 'N/A'
+      docRequierePoliza: contract.docRequierePoliza || 'N/A',
+      items: contract.items?.map(item => ({
+        materialId: item.materialId,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        iva: item.iva,
+        observations: item.observations,
+        applyAiu: item.applyAiu,
+        aiuAdministration: item.aiuAdministration,
+        aiuImprevistos: item.aiuImprevistos,
+        aiuUtilidad: item.aiuUtilidad
+      })) || []
     });
+    setContractItems(contract.items?.map(item => ({
+      materialId: item.materialId,
+      description: item.description,
+      quantity: item.quantity,
+      unit: item.unit,
+      unitPrice: item.unitPrice,
+      iva: item.iva,
+      observations: item.observations,
+      applyAiu: item.applyAiu,
+      aiuAdministration: item.aiuAdministration,
+      aiuImprevistos: item.aiuImprevistos,
+      aiuUtilidad: item.aiuUtilidad
+    })) || []);
     setShowModal(true);
   };
 
@@ -168,8 +206,93 @@ export default function ContractsPage() {
       status: 'DRAFT',
       observations: '',
       docContratoFirmado: 'NO',
-      docRequierePoliza: 'N/A'
+      docRequierePoliza: 'N/A',
+      items: []
     });
+    setContractItems([]);
+    setNewItem({
+      description: '',
+      quantity: 1,
+      unit: 'UNITS',
+      unitPrice: 0,
+      iva: false,
+      applyAiu: false,
+      aiuAdministration: 0,
+      aiuImprevistos: 0,
+      aiuUtilidad: 0
+    });
+  };
+
+  // Funciones para manejar items
+  const calculateItemTotal = (item: CreateContractItemDTO) => {
+    const subtotal = item.quantity * item.unitPrice;
+    let aiuTotal = 0;
+    if (item.applyAiu) {
+      const aiuPercentage = (item.aiuAdministration || 0) + (item.aiuImprevistos || 0) + (item.aiuUtilidad || 0);
+      aiuTotal = subtotal * (aiuPercentage / 100);
+    }
+    return subtotal + aiuTotal;
+  };
+
+  const calculateContractTotals = () => {
+    let subtotal = 0;
+    let iva = 0;
+    contractItems.forEach(item => {
+      const itemSubtotal = item.quantity * item.unitPrice;
+      let aiuTotal = 0;
+      if (item.applyAiu) {
+        const aiuPercentage = (item.aiuAdministration || 0) + (item.aiuImprevistos || 0) + (item.aiuUtilidad || 0);
+        aiuTotal = itemSubtotal * (aiuPercentage / 100);
+      }
+      subtotal += itemSubtotal + aiuTotal;
+      if (item.iva) {
+        iva += itemSubtotal * 0.19;
+      }
+    });
+    return { subtotal, iva, total: subtotal + iva };
+  };
+
+  const addItem = () => {
+    if (!newItem.description || newItem.quantity <= 0 || newItem.unitPrice <= 0) {
+      alert('Por favor complete los campos obligatorios del ítem');
+      return;
+    }
+    setContractItems([...contractItems, { ...newItem }]);
+    setNewItem({
+      description: '',
+      quantity: 1,
+      unit: 'UNITS',
+      unitPrice: 0,
+      iva: false,
+      applyAiu: false,
+      aiuAdministration: 0,
+      aiuImprevistos: 0,
+      aiuUtilidad: 0
+    });
+  };
+
+  const removeItem = (index: number) => {
+    setContractItems(contractItems.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const contractData = {
+        ...formData,
+        items: contractItems
+      };
+      if (editingContract) {
+        await api.updateContract(editingContract.id, contractData);
+      } else {
+        await api.createContract(contractData);
+      }
+      setShowModal(false);
+      loadContracts();
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save contract:', error);
+    }
   };
 
   const getStatusBadgeClass = (status: ContractStatus) => {
@@ -189,6 +312,23 @@ export default function ContractsPage() {
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-CL').format(value);
+  };
+
+  // Función para obtener el color del semáforo según días restantes
+  const getTrafficLight = (days: number | null | undefined) => {
+    if (days === null || days === undefined) {
+      return { color: '#9ca3af', label: 'Sin fecha', icon: '⚪' }; // Gris
+    }
+    if (days < 0) {
+      return { color: '#dc2626', label: 'Vencido', icon: '🔴' }; // Rojo - Vencido
+    }
+    if (days <= 30) {
+      return { color: '#dc2626', label: `${days} días`, icon: '🔴' }; // Rojo - Crítico
+    }
+    if (days <= 90) {
+      return { color: '#f59e0b', label: `${days} días`, icon: '🟡' }; // Amarillo - Advertencia
+    }
+    return { color: '#22c55e', label: `${days} días`, icon: '🟢' }; // Verde - OK
   };
 
   const calculateFinalValue = () => {
@@ -222,6 +362,7 @@ export default function ContractsPage() {
         <table className="data-table">
           <thead>
             <tr>
+              <th>🔔</th>
               <th>Código</th>
               <th>Proveedor</th>
               <th>Docs</th>
@@ -236,8 +377,22 @@ export default function ContractsPage() {
             </tr>
           </thead>
           <tbody>
-            {contracts.map(contract => (
+            {contracts.map(contract => {
+              const trafficLight = getTrafficLight(contract.daysUntilExpiration);
+              return (
               <tr key={contract.id}>
+                <td>
+                  <span 
+                    style={{ 
+                      color: trafficLight.color, 
+                      fontSize: '18px',
+                      cursor: 'help'
+                    }} 
+                    title={trafficLight.label}
+                  >
+                    {trafficLight.icon}
+                  </span>
+                </td>
                 <td><strong>{contract.code}</strong></td>
                 <td>{contract.supplier?.name || contract.supplierId}</td>
                 <td>{contract.docContratoFirmado === 'SI' ? '✅' : '❌'} / {contract.docRequierePoliza === 'SI' ? '✅' : contract.docRequierePoliza === 'N/A' ? 'N/A' : '❌'}</td>
@@ -254,10 +409,11 @@ export default function ContractsPage() {
                   <button className="btn-icon" onClick={() => handleDelete(contract.id)} title="Eliminar">🗑️</button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {contracts.length === 0 && (
               <tr>
-                <td colSpan={11} className="empty">No hay contratos</td>
+                <td colSpan={12} className="empty">No hay contratos</td>
               </tr>
             )}
           </tbody>
@@ -409,6 +565,225 @@ export default function ContractsPage() {
                     fontSize: '13px'
                   }}>
                     <strong>Valor Final del Contrato:</strong> ${(formData.value || 0).toLocaleString('es-CL')} + ${(formData.otroSiValue || 0).toLocaleString('es-CL')} = <strong>${calculateFinalValue().toLocaleString('es-CL')}</strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Items del contrato con AIU */}
+              <div className="form-group" style={{ 
+                border: '2px solid #e0e0e0', 
+                borderRadius: '8px', 
+                padding: '16px',
+                backgroundColor: '#f8f9fa',
+                marginTop: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <strong style={{ color: '#0A2540' }}>📋 Items del Contrato</strong>
+                  <span style={{ fontSize: '12px', color: '#666' }}>(Con AIU - Administración, Imprevistos, Utilidad)</span>
+                </div>
+
+                {/* Lista de items */}
+                {contractItems.length > 0 && (
+                  <table className="data-table" style={{ marginBottom: '12px', fontSize: '13px' }}>
+                    <thead>
+                      <tr>
+                        <th>Descripción</th>
+                        <th>Cant</th>
+                        <th>Unidad</th>
+                        <th>Precio</th>
+                        <th>AIU</th>
+                        <th>IVA</th>
+                        <th>Total</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contractItems.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.description}</td>
+                          <td>{item.quantity}</td>
+                          <td>{item.unit}</td>
+                          <td>${item.unitPrice.toLocaleString('es-CL')}</td>
+                          <td>
+                            {item.applyAiu ? (
+                              <span style={{ color: '#22c55e', fontSize: '11px' }}>
+                                A:{item.aiuAdministration}% I:{item.aiuImprevistos}% U:{item.aiuUtilidad}%
+                              </span>
+                            ) : '-'}
+                          </td>
+                          <td>{item.iva ? '✅' : '-'}</td>
+                          <td><strong>${calculateItemTotal(item).toLocaleString('es-CL')}</strong></td>
+                          <td>
+                            <button type="button" className="btn-icon" onClick={() => removeItem(index)} title="Eliminar">🗑️</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
+                {/* Agregar nuevo item */}
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: '#fff', 
+                  borderRadius: '6px',
+                  border: '1px solid #ddd'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>➕ Agregar Ítem</div>
+                  <div className="form-row">
+                    <div className="form-group" style={{ flex: 2 }}>
+                      <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Descripción *</label>
+                      <input 
+                        type="text" 
+                        placeholder="Descripción del ítem"
+                        value={newItem.description}
+                        onChange={e => setNewItem({...newItem, description: e.target.value})}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Cantidad</label>
+                      <input 
+                        type="number"
+                        min="1"
+                        value={newItem.quantity}
+                        onChange={e => setNewItem({...newItem, quantity: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Unidad</label>
+                      <select 
+                        value={newItem.unit}
+                        onChange={e => setNewItem({...newItem, unit: e.target.value})}
+                      >
+                        <option value="UNITS">Unidades</option>
+                        <option value="KG">Kilogramos</option>
+                        <option value="TON">Toneladas</option>
+                        <option value="METER">Metros</option>
+                        <option value="LITER">Litros</option>
+                        <option value="BOX">Cajas</option>
+                        <option value="BAG">Bolsas</option>
+                        <option value="PALLET">Paletas</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Precio Unit.</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        value={newItem.unitPrice}
+                        onChange={e => setNewItem({...newItem, unitPrice: Number(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+
+                  {/* AIU Checkbox */}
+                  <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={newItem.applyAiu}
+                        onChange={e => setNewItem({...newItem, applyAiu: e.target.checked})}
+                      />
+                      <span style={{ fontWeight: '600', color: '#0A2540' }}>Aplicar AIU</span>
+                    </label>
+                  </div>
+
+                  {/* AIU Porcentajes */}
+                  {newItem.applyAiu && (
+                    <div className="form-row" style={{ marginTop: '8px' }}>
+                      <div className="form-group">
+                        <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Administración %</label>
+                        <input 
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={newItem.aiuAdministration}
+                          onChange={e => setNewItem({...newItem, aiuAdministration: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Imprevistos %</label>
+                        <input 
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={newItem.aiuImprevistos}
+                          onChange={e => setNewItem({...newItem, aiuImprevistos: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Utilidad %</label>
+                        <input 
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={newItem.aiuUtilidad}
+                          onChange={e => setNewItem({...newItem, aiuUtilidad: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontWeight: 'normal', fontSize: '12px' }}>Total AIU</label>
+                        <div style={{ 
+                          padding: '6px 10px', 
+                          backgroundColor: '#e8f5e9', 
+                          borderRadius: '4px',
+                          fontWeight: '600',
+                          color: '#2e7d32'
+                        }}>
+                          ${calculateItemTotal(newItem).toLocaleString('es-CL')}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* IVA Checkbox */}
+                  <div style={{ marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={newItem.iva}
+                        onChange={e => setNewItem({...newItem, iva: e.target.checked})}
+                      />
+                      <span>Aplicar IVA (19%)</span>
+                    </label>
+                  </div>
+
+                  <button 
+                    type="button"
+                    className="btn-primary"
+                    onClick={addItem}
+                    style={{ marginTop: '12px' }}
+                  >
+                    ➕ Agregar Ítem
+                  </button>
+                </div>
+
+                {/* Totales del contrato */}
+                {contractItems.length > 0 && (
+                  <div style={{ 
+                    marginTop: '12px', 
+                    padding: '12px', 
+                    backgroundColor: '#e3f2fd', 
+                    borderRadius: '6px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span>Subtotal:</span>
+                      <strong>${calculateContractTotals().subtotal.toLocaleString('es-CL')}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span>IVA (19%):</span>
+                      <strong>${calculateContractTotals().iva.toLocaleString('es-CL')}</strong>
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      fontSize: '16px',
+                      paddingTop: '8px',
+                      borderTop: '1px solid #bbdefb'
+                    }}>
+                      <span>Total Contrato:</span>
+                      <strong style={{ color: '#0d47a1' }}>${calculateContractTotals().total.toLocaleString('es-CL')}</strong>
+                    </div>
                   </div>
                 )}
               </div>

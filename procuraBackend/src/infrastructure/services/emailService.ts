@@ -51,6 +51,8 @@ class EmailService {
     }
 
     try {
+      console.log('[EmailService] Conectando a:', settings.host, 'puerto:', settings.port);
+      
       this.transporter = nodemailer.createTransport({
         host: settings.host,
         port: settings.port,
@@ -58,25 +60,23 @@ class EmailService {
         auth: {
           user: settings.auth.user,
           pass: settings.auth.pass
-        },
-        connectionTimeout: 10000,
-        tls: {
-          rejectUnauthorized: false
         }
       });
+      
       this.config = settings;
       this.initialized = true;
-      console.log('[EmailService] Transporter inicializado:', { host: settings.host, port: settings.port, secure: settings.secure });
+      console.log('[EmailService] Transporter inicializado');
       return true;
-    } catch (error) {
-      console.error('[EmailService] Error al inicializar transporter:', error);
+    } catch (error: any) {
+      console.error('[EmailService] Error:', error.message || error);
       return false;
     }
   }
 
   async send(options: EmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    if (!await this.initializeTransporter()) {
-      return { success: false, error: 'SMTP no configurado' };
+    const initResult = await this.initializeTransporter();
+    if (!initResult) {
+      return { success: false, error: 'SMTP no configurado o error de conexión' };
     }
 
     const company = this.getCompanySettings();
