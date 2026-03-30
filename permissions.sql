@@ -1,0 +1,20 @@
+-- Permisos para Orka Reducida
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'quotations_view', 'Ver Cotizaciones', 'quotations');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'quotations_create', 'Crear Cotizaciones', 'quotations');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'quotations_approve', 'Aprobar Cotizaciones', 'quotations');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'orders_view', 'Ver Órdenes', 'orders');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'orders_create', 'Crear Órdenes', 'orders');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'orders_approve', 'Aprobar Órdenes', 'orders');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'orders_receive', 'Recibir Órdenes', 'orders');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'contracts_view', 'Ver Contratos', 'contracts');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'contracts_create', 'Crear Contratos', 'contracts');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'contracts_edit', 'Editar Contratos', 'contracts');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'contracts_delete', 'Eliminar Contratos', 'contracts');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'reports_view', 'Ver Reportes', 'reports');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'reports_export', 'Exportar Reportes', 'reports');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'settings_view', 'Ver Configuración', 'settings');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'settings_edit', 'Editar Configuración', 'settings');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'users_view', 'Ver Usuarios', 'users');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'users_create', 'Crear Usuarios', 'users');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'users_edit', 'Editar Usuarios', 'users');
+INSERT INTO "Permission" (id, code, name, category) VALUES (gen_random_uuid(), 'users_delete', 'Eliminar Usuarios', 'users');

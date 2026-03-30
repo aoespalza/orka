@@ -2,13 +2,13 @@
 
 # ============================================
 # Orka - Sistema de Compras para Construcción Civil
-# Script de instalación para Ubuntu Server
+# Script de instalación para Ubuntu Server (SIN DOCKER)
 # ============================================
 
 set -e
 
 echo "========================================"
-echo "  Instalación de Orka"
+echo "  Instalación de Orka (Sin Docker)"
 echo "========================================"
 
 # Colores
@@ -35,38 +35,78 @@ info "Actualizando sistema..."
 apt update && apt upgrade -y
 
 # ============================================
-# 2. Instalar Docker
+# 2. Instalar dependencias básicas
 # ============================================
-if command -v docker &> /dev/null; then
-  warn "Docker ya está instalado"
+info "Instalando dependencias básicas..."
+apt install -y curl wget git build-essential
+
+# ============================================
+# 3. Instalar PostgreSQL
+# ============================================
+info "Instalando PostgreSQL..."
+
+# Verificar si ya está instalado
+if command -v psql &> /dev/null; then
+  warn "PostgreSQL ya está instalado"
 else
-  info "Instalando Docker..."
-  curl -fsSL https://get.docker.com | sh
-  usermod -aG docker $USER
+  # Instalar PostgreSQL
+  apt install -y postgresql postgresql-contrib
+
+  # Iniciar servicio
+  systemctl enable postgresql
+  systemctl start postgresql
 fi
 
 # ============================================
-# 3. Instalar Docker Compose
+# 4. Configurar PostgreSQL
 # ============================================
-if command -v docker-compose &> /dev/null; then
-  warn "Docker Compose ya está instalado"
+info "Configurando PostgreSQL..."
+
+# Contraseña para usuario postgres
+DB_PASSWORD="orka2026"
+
+# Cambiar contraseña del usuario postgres
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD '$DB_PASSWORD';"
+
+# Crear base de datos
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS orka_reducida;" 2>/dev/null || true
+sudo -u postgres psql -c "CREATE DATABASE orka_reducida;"
+
+info "Base de datos 'orka_reducida' creada"
+
+# ============================================
+# 5. Instalar Node.js 20.x
+# ============================================
+info "Instalando Node.js 20.x..."
+
+if command -v node &> /dev/null; then
+  warn "Node.js ya está instalado: $(node -v)"
 else
-  info "Instalando Docker Compose..."
-  apt install -y docker-compose
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt install -y nodejs
+fi
+
+info "Node.js $(node -v) instalado"
+
+# ============================================
+# 6. Instalar PM2 (gestor de procesos)
+# ============================================
+info "Instalando PM2..."
+npm install -g pm2
+
+# ============================================
+# 7. Instalar Nginx
+# ============================================
+info "Instalando Nginx..."
+
+if command -v nginx &> /dev/null; then
+  warn "Nginx ya está instalado"
+else
+  apt install -y nginx
 fi
 
 # ============================================
-# 4. Instalar Git (si no está)
-# ============================================
-if command -v git &> /dev/null; then
-  warn "Git ya está instalado"
-else
-  info "Instalando Git..."
-  apt install -y git
-fi
-
-# ============================================
-# 5. Configurar firewall
+# 8. Configurar firewall
 # ============================================
 info "Configurando firewall..."
 
@@ -76,9 +116,9 @@ if ! command -v ufw &> /dev/null; then
 fi
 
 # Puertos necesarios
+ufw allow 80/tcp comment 'HTTP'
+ufw allow 443/tcp comment 'HTTPS'
 ufw allow 3006/tcp comment 'Orka Backend'
-ufw allow 5174/tcp comment 'Orka Frontend'
-ufw allow 5434/tcp comment 'Orka PostgreSQL'
 
 # Habilitar firewall
 ufw --force enable
@@ -87,76 +127,189 @@ ufw reload
 info "Firewall configurado"
 
 # ============================================
-# 6. Clonar repositorio
+# 9. Preparar directorio de la aplicación
 # ============================================
-if [ -d "/opt/orka" ]; then
-  warn "El directorio /opt/orka ya existe"
+info "Preparando directorio de la aplicación..."
+
+APP_DIR="/opt/orka"
+mkdir -p $APP_DIR
+
+# Si ya existe, actualizar con git pull
+if [ -d "$APP_DIR/.git" ]; then
+  warn "El directorio $APP_DIR ya existe"
   read -p "¿Deseas actualizar el código? (s/n): " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Ss]$ ]]; then
-    cd /opt/orka
+    cd $APP_DIR
     git pull origin master
   fi
 else
   info "Clonando repositorio..."
-  mkdir -p /opt
   cd /opt
-  git clone https://github.com/aoespalza/orka.git orka
-  cd /opt/orka
+  rm -rf orka
+  git clone https://github.com/aoespalza/orka_reducida.git orka
+  cd $APP_DIR
 fi
 
 # ============================================
-# 7. Configurar variables de entorno
+# 10. Configurar Backend
 # ============================================
-info "Configurando variables de entorno..."
+info "Configurando Backend..."
 
-if [ ! -f "procuraBackend/.env" ]; then
-  cp procuraBackend/.env.example procuraBackend/.env 2>/dev/null || true
-fi
+cd $APP_DIR/procuraBackend
 
-# Puerto para el frontend
-if [ ! -f "procuraFrontend/.env" ]; then
-  echo "VITE_API_URL=http://localhost:3006/api" > procuraFrontend/.env
-fi
+# Instalar dependencias
+npm install
+
+# Generar Prisma Client
+npx prisma generate
+
+# Configurar variables de entorno
+cat > .env << EOF
+DATABASE_URL="postgresql://postgres:$DB_PASSWORD@localhost:5432/orka_reducida?schema=public"
+JWT_SECRET=$(openssl rand -base64 32)
+JWT_EXPIRES_IN=24h
+PORT=3006
+NODE_ENV=production
+EOF
+
+info "Variables de entorno del backend configuradas"
+
+# Crear tablas en la base de datos (db push en lugar de migrate para proyectos sin migraciones)
+info "Creando tablas en la base de datos..."
+npx prisma db push
+
+# Crear usuario admin inicial
+info "Creando usuario administrador..."
+node create_admin.js
+
+# Compilar TypeScript
+info "Compilando backend..."
+npm run build
 
 # ============================================
-# 8. Construir y levantar servicios
+# 11. Configurar Frontend
 # ============================================
-info "Construyendo servicios (primera vez puede tardar)..."
+info "Configurando Frontend..."
 
-cd /opt/orka
-docker compose up -d --build
+cd $APP_DIR/procuraFrontend
+
+# Instalar dependencias
+npm install
+
+# Configurar variables de entorno
+cat > .env << EOF
+VITE_API_URL=http://localhost:3006/api
+EOF
+
+# Compilar frontend
+info "Compilando frontend..."
+npm run build
 
 # ============================================
-# 9. Verificar servicios
+# 12. Configurar Nginx
+# ============================================
+info "Configurando Nginx..."
+
+# Crear configuración
+cat > /etc/nginx/sites-available/orka << 'EOF'
+server {
+    listen 80;
+    server_name _;
+
+    # Frontend - Archivos estáticos
+    location / {
+        root /opt/orka/procuraFrontend/dist;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+        
+        # Cache para archivos estáticos
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # Backend API
+    location /api/ {
+        proxy_pass http://localhost:3006/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Health check
+    location /health {
+        proxy_pass http://localhost:3006/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+}
+EOF
+
+# Habilitar sitio
+ln -sf /etc/nginx/sites-available/orka /etc/nginx/sites-enabled/
+
+# Eliminar configuración por defecto
+rm -f /etc/nginx/sites-enabled/default
+
+# Verificar configuración
+nginx -t
+
+# Recargar Nginx
+systemctl enable nginx
+systemctl reload nginx
+
+info "Nginx configurado"
+
+# ============================================
+# 13. Iniciar servicios con PM2
+# ============================================
+info "Iniciando servicios con PM2..."
+
+# Detener procesos anteriores si existen
+pm2 delete orka-backend 2>/dev/null || true
+
+# Iniciar backend
+cd $APP_DIR/procuraBackend
+pm2 start npm --name orka-backend -- start
+
+# Guardar configuración de PM2
+pm2 save
+
+# Configurar inicio automático
+pm2 startup | tail -1 | bash
+
+info "Servicios iniciados"
+
+# ============================================
+# 14. Verificar servicios
 # ============================================
 info "Verificando servicios..."
 
-sleep 10
-
-# Verificar PostgreSQL
-if docker ps | grep -q orka_db; then
-  info "✓ PostgreSQL corriendo"
-else
-  error "✗ PostgreSQL no está corriendo"
-fi
+sleep 5
 
 # Verificar Backend
-if docker ps | grep -q orka_backend; then
+if pm2 list | grep -q orka-backend; then
   info "✓ Backend corriendo en puerto 3006"
 else
   error "✗ Backend no está corriendo"
 fi
 
-# Verificar Frontend
-if docker ps | grep -q orka_frontend; then
-  info "✓ Frontend corriendo en puerto 5174"
+# Verificar Nginx
+if systemctl is-active --quiet nginx; then
+  info "✓ Nginx corriendo"
 else
-  error "✗ Frontend no está corriendo"
+  error "✗ Nginx no está corriendo"
 fi
 
 # ============================================
-# 10. Mostrar información final
+# 15. Mostrar información final
 # ============================================
 echo ""
 echo "========================================"
@@ -164,23 +317,23 @@ echo "  Instalación completada"
 echo "========================================"
 echo ""
 echo "Servicios disponibles:"
-echo "  - Frontend: http://TU_IP:5174"
-echo "  - Backend:  http://TU_IP:3006"
-echo "  - API:      http://TU_IP:3006/api"
-echo "  - Health:   http://TU_IP:3006/health"
+SERVER_IP=$(hostname -I | awk '{print $1}')
+echo "  - Frontend: http://$SERVER_IP"
+echo "  - Backend:  http://$SERVER_IP:3006"
+echo "  - API:      http://$SERVER_IP/api"
+echo "  - Health:   http://$SERVER_IP/health"
 echo ""
 echo "Comandos útiles:"
-echo "  - Ver logs:     docker-compose logs -f"
-echo "  - Reiniciar:    docker-compose restart"
-echo "  - Detener:      docker-compose down"
-echo "  - Actualizar:   cd /opt/orka && git pull && docker compose up -d --build"
+echo "  - Ver logs backend:  pm2 logs orka-backend"
+echo "  - Reiniciar backend: pm2 restart orka-backend"
+echo "  - Ver estado:       pm2 status"
+echo "  - Reiniciar Nginx:  sudo systemctl reload nginx"
+echo "  - Actualizar:       cd $APP_DIR && git pull && npm run build --prefix procuraFrontend && pm2 restart all"
 echo ""
 echo "Credenciales por defecto:"
 echo "  - Usuario: admin"
 echo "  - Contraseña: admin123"
 echo ""
 echo "========================================"
-
-# Obtener IP del servidor
-SERVER_IP=$(hostname -I | awk '{print $1}')
-echo "Accede desde: http://$SERVER_IP:5174"
+echo "Accede desde: http://$SERVER_IP"
+echo "========================================"

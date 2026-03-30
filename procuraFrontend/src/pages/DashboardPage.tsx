@@ -32,7 +32,8 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   const loadExpiringWorkOrders = async () => {
     try {
-      const workOrders = await api.getWorkOrders();
+      const response = await api.getWorkOrders();
+      const workOrders = Array.isArray(response) ? response : (response as any).data || [];
       const today = new Date();
       const sixtyDaysFromNow = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
       
@@ -56,7 +57,8 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   const loadExpiringContracts = async () => {
     try {
-      const contracts = await api.getContracts({});
+      const response = await api.getContracts({});
+      const contracts = Array.isArray(response) ? response : (response as any).data || [];
       const today = new Date();
       const sixtyDaysFromNow = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
       
@@ -200,7 +202,14 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
                 {expiringWorkOrders.slice(0, 5).map((wo) => {
                   const daysLeft = getDaysUntilExpiry(wo.endDate!);
                   return (
-                    <tr key={wo.id}>
+                    <tr 
+                      key={wo.id} 
+                      className="clickable-row"
+                      onClick={() => {
+                        localStorage.setItem('PROCURA_OPEN_WORKORDER', wo.id);
+                        onNavigate?.('work-orders');
+                      }}
+                    >
                       <td>{wo.code}</td>
                       <td>{wo.supplierName || '-'}</td>
                       <td>{new Date(wo.endDate!).toLocaleDateString('es-CL')}</td>
@@ -239,7 +248,14 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
                 {expiringContracts.slice(0, 5).map((contract) => {
                   const daysLeft = getDaysUntilExpiry(contract.endDate!);
                   return (
-                    <tr key={contract.id}>
+                    <tr 
+                      key={contract.id} 
+                      className="clickable-row"
+                      onClick={() => {
+                        localStorage.setItem('PROCURA_OPEN_CONTRACT', contract.id);
+                        onNavigate?.('contracts');
+                      }}
+                    >
                       <td>{contract.code}</td>
                       <td>{contract.supplier?.name || '-'}</td>
                       <td>{new Date(contract.endDate!).toLocaleDateString('es-CL')}</td>

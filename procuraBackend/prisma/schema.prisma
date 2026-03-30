@@ -166,6 +166,7 @@ model Material {
   isActive      Boolean         @default(true)
   
   workOrderItems   WorkOrderItem[]
+  contractItems    ContractItem[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -347,15 +348,47 @@ model Contract {
   otroSiValue     Float          @default(0)  // Valor adicional del otro sí
   
   // Valores calculados
-  finalValue      Float          @default(0)  // Valor inicial + otro sí
+  subtotal        Float          @default(0)  // Subtotal sin IVA
+  iva             Float          @default(0)   // IVA calculado
+  finalValue      Float          @default(0)  // Valor inicial + otro sí + IVA
   advancePayment  Float          @default(0)  // Anticipo sobre contrato inicial
   
   // Estado y observaciones
   status          ContractStatus @default(DRAFT)
   observations    String?
   
+  // Items del contrato
+  items           ContractItem[]
+  
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+}
+
+// Items del contrato con AIU
+model ContractItem {
+  id              String     @id @default(uuid())
+  contractId      String
+  description     String
+  quantity        Float      @default(1)
+  unit            String
+  unitPrice       Float
+  iva             Boolean    @default(false)  // Indica si tiene IVA
+  totalPrice      Float      @default(0)
+  observations    String?
+  
+  // AIU - Administración, Imprevistos, Utilidad (normativa colombiana construcción civil)
+  applyAiu        Boolean    @default(false)  // Indica si aplica AIU a este ítem
+  aiuAdministration Float    @default(0)     // Porcentaje Administración (ej: 10%)
+  aiuImprevistos  Float      @default(0)      // Porcentaje Imprevistos (ej: 3%)
+  aiuUtilidad     Float      @default(0)      // Porcentaje Utilidad (ej: 8%)
+  aiuTotal        Float      @default(0)      // Valor AIU calculado
+  
+  contract        Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  materialId      String?
+  material        Material?  @relation(fields: [materialId], references: [id])
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 }
 
 // ============================================
