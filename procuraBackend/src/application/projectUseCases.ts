@@ -61,17 +61,18 @@ export class ProjectUseCases {
   }
 
   async generateCode(): Promise<string> {
-    const last = await this.repository.findLast();
-    const year = new Date().getFullYear();
+    // Buscar último código que comience con CE-
+    const lastCeProject = await this.repository.findLastCe();
     
-    if (!last) {
-      return `PRY-${year}-0001`;
+    // Empezar en 201 si no hay proyectos CE-
+    if (!lastCeProject) {
+      return `CE-201`;
     }
 
-    const lastCode = last.code;
-    const lastNumber = parseInt(lastCode.split('-')[2] || '0');
+    // Extraer número del código actual
+    const lastNumber = parseInt(lastCeProject.code.replace('CE-', ''));
     const newNumber = lastNumber + 1;
     
-    return `PRY-${year}-${newNumber.toString().padStart(4, '0')}`;
+    return `CE-${newNumber}`;
   }
 }

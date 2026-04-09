@@ -82,14 +82,36 @@ export class ContractRepository {
     });
   }
 
-  async generateCode(): Promise<string> {
-    const last = await this.getLastContract();
-    const nextNumber = last ? parseInt(last.code.replace('CTR-', '')) + 1 : 1;
-    return `CTR-${nextNumber.toString().padStart(4, '0')}`;
+  async generateCode(projectId: string | null): Promise<string> {
+    let projectCode = '000'; // Default si no tiene proyecto
+    
+    if (projectId) {
+      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+      if (project && project.code.startsWith('CE-')) {
+        // Extraer los 3 dígitos del proyecto: CE-201 -> 201
+        projectCode = project.code.replace('CE-', '');
+      }
+    }
+    
+    // Buscar el último contrato de este proyecto
+    const prefix = `CE-${projectCode}-144-`;
+    const last = await this.prisma.contract.findFirst({
+      where: { code: { startsWith: prefix } },
+      orderBy: { code: 'desc' }
+    });
+    
+    // Extraer número secuencial
+    let nextSeq = 1;
+    if (last) {
+      const parts = last.code.split('-');
+      nextSeq = parseInt(parts[parts.length - 1]) + 1;
+    }
+    
+    return `${prefix}${nextSeq.toString().padStart(3, '0')}`;
   }
 
   async create(data: CreateContractDTO): Promise<Contract> {
-    const code = await this.generateCode();
+    const code = await this.generateCode(data.projectId || null);
     
     // Calcular subtotal, AIU, IVA y total
     let subtotal = 0;

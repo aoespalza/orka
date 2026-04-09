@@ -74,4 +74,33 @@ export class ProjectRepository {
     });
     return last as Project | null;
   }
+
+  async findLastCe(): Promise<Project | null> {
+    const all = await prisma.project.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    // Buscar el último con código CE-
+    const lastCe = all.find(p => p.code.startsWith('CE-'));
+    if (!lastCe) return null;
+    
+    // Convertir nulls a undefined para cumplir el tipo
+    return {
+      ...lastCe,
+      description: lastCe.description || undefined,
+      address: lastCe.address || undefined,
+      city: lastCe.city || undefined,
+      region: lastCe.region || undefined,
+      clientName: lastCe.clientName || undefined,
+      clientRut: lastCe.clientRut || undefined,
+      startDate: lastCe.startDate || undefined,
+      endDate: lastCe.endDate || undefined,
+      deadline: lastCe.deadline || undefined,
+      budget: lastCe.budget || undefined,
+      actualCost: lastCe.actualCost || undefined,
+      contactName: lastCe.contactName || undefined,
+      contactPhone: lastCe.contactPhone || undefined,
+      contactEmail: lastCe.contactEmail || undefined,
+      notes: lastCe.notes || undefined,
+    } as Project;
+  }
 }

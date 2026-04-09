@@ -81,11 +81,8 @@ export default function ProjectsPage() {
       notes: formData.get('notes') as string || undefined,
     };
     
-    // Only include code for new projects
-    if (!isEditing) {
-      data.code = formData.get('code') as string;
-    } else {
-      // Include status for editing
+    // Include status for editing
+    if (isEditing) {
       data.status = formData.get('status') as string;
     }
 
@@ -204,10 +201,6 @@ export default function ProjectsPage() {
             <h2>{editingProject ? 'Editar Proyecto' : 'Nuevo Proyecto'}</h2>
             <form onSubmit={handleSave}>
               <div className="form-row">
-                <div className="form-group">
-                  <label>Código *</label>
-                  <input name="code" required defaultValue={editingProject?.code} disabled={!!editingProject} />
-                </div>
                 <div className="form-group">
                   <label>Nombre *</label>
                   <input name="name" required defaultValue={editingProject?.name} />

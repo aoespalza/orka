@@ -67,28 +67,31 @@ export class WorkOrderRepository {
   }
 
   async generateCode(projectId: string | null): Promise<string> {
+    let projectCode = '000'; // Default si no tiene proyecto
+    
     if (projectId) {
-      // Obtener el proyecto para usar su código
       const project = await this.prisma.project.findUnique({ where: { id: projectId } });
-      if (project) {
-        // Buscar la última orden de trabajo de este proyecto
-        const last = await this.getLastWorkOrderByProject(projectId);
-        const projectCode = project.code || 'PROY';
-        if (last) {
-          // Extraer el número secuencial del código existente
-          const parts = last.code.split('-');
-          const lastSeq = parseInt(parts[parts.length - 1]);
-          const nextSeq = lastSeq + 1;
-          return `${projectCode}-${nextSeq.toString().padStart(4, '0')}`;
-        }
-        return `${projectCode}-0001`;
+      if (project && project.code.startsWith('CE-')) {
+        // Extraer los 3 dígitos del proyecto: CE-201 -> 201
+        projectCode = project.code.replace('CE-', '');
       }
     }
     
-    // Si no tiene proyecto, usar código global OT-
-    const last = await this.getLastWorkOrder();
-    const nextNumber = last ? parseInt(last.code.replace('OT-', '')) + 1 : 1;
-    return `OT-${nextNumber.toString().padStart(4, '0')}`;
+    // Buscar la última orden de trabajo de este proyecto
+    const prefix = `CE-${projectCode}-142-`;
+    const last = await this.prisma.workOrder.findFirst({
+      where: { code: { startsWith: prefix } },
+      orderBy: { code: 'desc' }
+    });
+    
+    // Extraer número secuencial
+    let nextSeq = 1;
+    if (last) {
+      const parts = last.code.split('-');
+      nextSeq = parseInt(parts[parts.length - 1]) + 1;
+    }
+    
+    return `${prefix}${nextSeq.toString().padStart(3, '0')}`;
   }
 
   async create(data: CreateWorkOrderDTO): Promise<WorkOrder> {
