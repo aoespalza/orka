@@ -21,12 +21,16 @@ export class ContractRepository {
     if (filters?.workOrderId) {
       where.workOrderId = filters.workOrderId;
     }
+    if (filters?.projectId) {
+      where.projectId = filters.projectId;
+    }
 
     const contracts = await this.prisma.contract.findMany({
       where,
       include: { 
         workOrder: true, 
         supplier: true,
+        project: true,
         items: true
       },
       orderBy: { createdAt: 'desc' }
@@ -68,7 +72,7 @@ export class ContractRepository {
   async findById(id: string): Promise<Contract | null> {
     return this.prisma.contract.findUnique({
       where: { id },
-      include: { workOrder: true, supplier: true, items: true }
+      include: { workOrder: true, supplier: true, project: true, items: true }
     });
   }
 
@@ -121,6 +125,7 @@ export class ContractRepository {
       data: {
         code,
         workOrderId: data.workOrderId || null,
+        projectId: data.projectId || null,
         supplierId: data.supplierId,
         startDate: data.startDate ? new Date(data.startDate) : null,
         endDate: data.endDate ? new Date(data.endDate) : null,
@@ -170,7 +175,7 @@ export class ContractRepository {
           })
         } : undefined
       },
-      include: { workOrder: true, supplier: true, items: true }
+      include: { workOrder: true, supplier: true, project: true, items: true }
     });
   }
 
@@ -224,6 +229,7 @@ export class ContractRepository {
       where: { id },
       data: {
         ...(data.workOrderId !== undefined && { workOrderId: data.workOrderId || null }),
+        ...(data.projectId !== undefined && { projectId: data.projectId || null }),
         ...(data.supplierId && { supplierId: data.supplierId }),
         ...(data.startDate !== undefined && { startDate: data.startDate ? new Date(data.startDate) : null }),
         ...(newEndDate !== undefined && { endDate: newEndDate ? new Date(newEndDate) : null }),

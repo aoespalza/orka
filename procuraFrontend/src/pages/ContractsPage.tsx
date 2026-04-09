@@ -14,22 +14,24 @@ const CONTRACT_STATUS_OPTIONS = [
 
 const FIC_OPTIONS = [
   { value: 'NO', label: 'No' },
-  { value: 'SI', label: 'Sí' },
-  { value: 'FIRMA', label: 'Firma' }
+  { value: 'SI', label: 'Sí' }
 ];
 
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [supplierFilter, setSupplierFilter] = useState<string>('');
+  const [projectFilter, setProjectFilter] = useState<string>('');
   const [companyInfo, setCompanyInfo] = useState<any>({});
 
   useEffect(() => {
-    loadContracts(); loadSuppliers(); loadCompanySettings();
-  }, [statusFilter]);
+    loadContracts(); loadSuppliers(); loadProjects(); loadCompanySettings();
+  }, [statusFilter, supplierFilter, projectFilter]);
 
   // Effect para abrir contrato desde el dashboard
   useEffect(() => {
@@ -70,6 +72,7 @@ export default function ContractsPage() {
 
   const [formData, setFormData] = useState<CreateContractDTO>({
     workOrderId: '',
+    projectId: '',
     supplierId: '',
     startDate: '',
     endDate: '',
@@ -105,13 +108,22 @@ export default function ContractsPage() {
   useEffect(() => {
     loadContracts();
     loadSuppliers();
-  }, [statusFilter]);
+  }, [statusFilter, supplierFilter, projectFilter]);
 
   const loadContracts = async () => {
     try {
       setIsLoading(true);
       const filters = statusFilter ? { status: statusFilter } : undefined;
-      const data = await api.getContracts(filters);
+      let data = await api.getContracts(filters);
+      
+      // Apply client-side filters
+      if (supplierFilter) {
+        data = data.filter((c: Contract) => c.supplierId === supplierFilter);
+      }
+      if (projectFilter) {
+        data = data.filter((c: Contract) => c.projectId === projectFilter);
+      }
+      
       setContracts(data);
     } catch (error) {
       console.error('Failed to load contracts:', error);
@@ -129,10 +141,20 @@ export default function ContractsPage() {
     }
   };
 
+  const loadProjects = async () => {
+    try {
+      const data = await api.getProjects({});
+      setProjects(Array.isArray(data) ? data : (data?.data || []));
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+    }
+  };
+
   const handleEdit = (contract: Contract) => {
     setEditingContract(contract);
     setFormData({
       workOrderId: contract.workOrderId || '',
+      projectId: contract.projectId || '',
       supplierId: contract.supplierId,
       startDate: contract.startDate ? contract.startDate.split('T')[0] : '',
       endDate: contract.endDate ? contract.endDate.split('T')[0] : '',
@@ -354,6 +376,26 @@ export default function ContractsPage() {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
+
+        <select 
+          value={supplierFilter} 
+          onChange={e => setSupplierFilter(e.target.value)}
+        >
+          <option value="">Todos los proveedores</option>
+          {suppliers.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+
+        <select 
+          value={projectFilter} 
+          onChange={e => setProjectFilter(e.target.value)}
+        >
+          <option value="">Todos los proyectos</option>
+          {projects.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
       </div>
 
       {isLoading ? (
@@ -364,6 +406,7 @@ export default function ContractsPage() {
             <tr>
               <th>🔔</th>
               <th>Código</th>
+              <th>Proyecto</th>
               <th>Proveedor</th>
               <th>Docs</th>
               <th>Fecha Inicio</th>
@@ -394,6 +437,7 @@ export default function ContractsPage() {
                   </span>
                 </td>
                 <td><strong>{contract.code}</strong></td>
+                <td>{contract.project?.name || '-'}</td>
                 <td>{contract.supplier?.name || contract.supplierId}</td>
                 <td>{contract.docContratoFirmado === 'SI' ? '✅' : '❌'} / {contract.docRequierePoliza === 'SI' ? '✅' : contract.docRequierePoliza === 'N/A' ? 'N/A' : '❌'}</td>
                 <td>{contract.startDate ? new Date(contract.startDate).toLocaleDateString('es-CL') : '-'}</td>
@@ -401,7 +445,18 @@ export default function ContractsPage() {
                 <td>{formatCurrency(contract.value)}</td>
                 <td>{formatCurrency(contract.finalValue)}</td>
                 <td>{contract.advancePayment > 0 ? `${contract.advancePayment}%` : '-'}</td>
-                <td>{contract.fic}</td>
+                <td>
+                  {contract.fic === 'SI' ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>Sí</span>
+                      {contract.docContratoFirmado === 'SI' ? (
+                        <span style={{ color: 'green', fontSize: '14px' }}>✓</span>
+                      ) : (
+                        <span style={{ color: 'red', fontSize: '14px' }}>✗</span>
+                      )}
+                    </span>
+                  ) : 'No'}
+                </td>
                 <td><span className={`badge ${getStatusBadgeClass(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
                 <td>
                   <button className="btn-icon" onClick={() => handleExportPDF(contract)} title="Exportar PDF">📄</button>
@@ -413,7 +468,7 @@ export default function ContractsPage() {
             })}
             {contracts.length === 0 && (
               <tr>
-                <td colSpan={12} className="empty">No hay contratos</td>
+                <td colSpan={13} className="empty">No hay contratos</td>
               </tr>
             )}
           </tbody>
@@ -431,6 +486,16 @@ export default function ContractsPage() {
                   <option value="">Seleccionar...</option>
                   {suppliers.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Proyecto</label>
+                <select name="projectId" value={formData.projectId} onChange={e => setFormData({...formData, projectId: e.target.value})}>
+                  <option value="">Sin proyecto</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
               </div>
@@ -485,35 +550,20 @@ export default function ContractsPage() {
                     ))}
                   </select>
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label>Documentos</label>
-                <div style={{ display: 'flex', gap: '24px', marginTop: '8px' }}>
-                  <div>
-                    <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Contrato Firmado</label>
-                    <select 
-                      value={formData.docContratoFirmado} 
-                      onChange={e => setFormData({...formData, docContratoFirmado: e.target.value as any})}
-                      style={{ marginLeft: '8px' }}
-                    >
-                      <option value="NO">No</option>
-                      <option value="SI">Sí</option>
-                    </select>
+                {formData.fic === 'SI' && (
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.docContratoFirmado === 'SI'}
+                        onChange={e => setFormData({...formData, docContratoFirmado: e.target.checked ? 'SI' : 'NO'})}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      ✓ Contrato Firmado
+                    </label>
                   </div>
-                  <div>
-                    <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Requiere Póliza</label>
-                    <select 
-                      value={formData.docRequierePoliza} 
-                      onChange={e => setFormData({...formData, docRequierePoliza: e.target.value as any})}
-                      style={{ marginLeft: '8px' }}
-                    >
-                      <option value="N/A">No aplica</option>
-                      <option value="SI">Sí</option>
-                      <option value="NO">No</option>
-                    </select>
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="form-group" style={{ 

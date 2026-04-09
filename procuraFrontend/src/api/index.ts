@@ -242,6 +242,16 @@ class ApiClient {
     return response.data;
   }
 
+  async getContractsByProject(): Promise<any[]> {
+    const response = await this.client.get<any[]>('/dashboard/contracts-by-project');
+    return response.data;
+  }
+
+  async getWorkOrdersByProject(): Promise<any[]> {
+    const response = await this.client.get<any[]>('/dashboard/workorders-by-project');
+    return response.data;
+  }
+
   // ============================================
   // SETTINGS
   // ============================================
@@ -256,8 +266,8 @@ class ApiClient {
     return Array.isArray(response.data) ? response.data : (response.data?.data || []);
   }
 
-  async updateSetting(key: string, value: string): Promise<any> {
-    const response = await this.client.put<any>(`/settings/${key}`, { value });
+  async updateSetting(key: string, value: string, category?: string): Promise<any> {
+    const response = await this.client.put<any>(`/settings/${key}`, { value, category });
     return response.data;
   }
 

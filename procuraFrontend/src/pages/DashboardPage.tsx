@@ -1,7 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api';
 import type { DashboardStats, WorkOrder, Contract } from '../types';
 import './DashboardPage.css';
+
+interface ContractsByProject {
+  projectId: string;
+  projectName: string;
+  contractCount: number;
+  totalValue: number;
+}
+
+interface WorkOrdersByProject {
+  projectId: string;
+  projectName: string;
+  workOrderCount: number;
+  totalValue: number;
+}
 
 interface DashboardPageProps {
   onNavigate?: (page: string) => void;
@@ -12,11 +27,38 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [expiringWorkOrders, setExpiringWorkOrders] = useState<WorkOrder[]>([]);
   const [expiringContracts, setExpiringContracts] = useState<Contract[]>([]);
+  const [contractsByProject, setContractsByProject] = useState<ContractsByProject[]>([]);
+  const [workOrdersByProject, setWorkOrdersByProject] = useState<WorkOrdersByProject[]>([]);
+
+  // Preparar datos para la gráfica
+  const chartData = useMemo(() => {
+    const projectMap = new Map();
+    
+    // Agregar contratos por proyecto
+    contractsByProject.forEach(item => {
+      if (!projectMap.has(item.projectName)) {
+        projectMap.set(item.projectName, { name: item.projectName, contracts: 0, workOrders: 0 });
+      }
+      projectMap.get(item.projectName).contracts = item.contractCount;
+    });
+    
+    // Agregar órdenes de trabajo por proyecto
+    workOrdersByProject.forEach(item => {
+      if (!projectMap.has(item.projectName)) {
+        projectMap.set(item.projectName, { name: item.projectName, contracts: 0, workOrders: 0 });
+      }
+      projectMap.get(item.projectName).workOrders = item.workOrderCount;
+    });
+    
+    return Array.from(projectMap.values());
+  }, [contractsByProject, workOrdersByProject]);
 
   useEffect(() => {
     loadStats();
     loadExpiringWorkOrders();
     loadExpiringContracts();
+    loadContractsByProject();
+    loadWorkOrdersByProject();
   }, []);
 
   const loadStats = async () => {
@@ -77,6 +119,24 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
       setExpiringContracts(expiring);
     } catch (error) {
       console.error('Failed to load contracts:', error);
+    }
+  };
+
+  const loadContractsByProject = async () => {
+    try {
+      const data = await api.getContractsByProject();
+      setContractsByProject(data);
+    } catch (error) {
+      console.error('Failed to load contracts by project:', error);
+    }
+  };
+
+  const loadWorkOrdersByProject = async () => {
+    try {
+      const data = await api.getWorkOrdersByProject();
+      setWorkOrdersByProject(data);
+    } catch (error) {
+      console.error('Failed to load work orders by project:', error);
     }
   };
 
@@ -183,6 +243,134 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
           </div>
         </div>
 
+        {/* Gráfico de Barras: Activos por Proyecto */}
+        <div className="dashboard-section">
+          <h2>Contratos y Órdenes de Trabajo Activas por Proyecto</h2>
+          {chartData.length === 0 ? (
+            <p className="empty-message">No hay datos para mostrar</p>
+          ) : (
+            <div style={{ width: '100%', height: 320 }}>
+              <ResponsiveContainer>
+                <BarChart 
+                  data={chartData} 
+                  margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                  barCategoryGap="20%"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="name" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={80}
+                    interval={0}
+                    tick={{ fill: '#374151', fontSize: 12 }}
+                  />
+                  <YAxis 
+                    tick={{ fill: '#374151', fontSize: 12 }}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    formatter={(value: number, name: string) => [
+                      value, 
+                      name === 'contracts' ? '📜 Contratos' : '🔧 Órdenes de Trabajo'
+                    ]}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="circle"
+                  />
+                  <Bar 
+                    dataKey="contracts" 
+                    name="Contratos" 
+                    fill="url(#colorContracts)" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
+                  />
+                  <Bar 
+                    dataKey="workOrders" 
+                    name="Órdenes de Trabajo" 
+                    fill="url(#colorWorkOrders)" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
+                  />
+                  <defs>
+                    <linearGradient id="colorContracts" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#fbbf24" />
+                      <stop offset="95%" stopColor="#d97706" />
+                    </linearGradient>
+                    <linearGradient id="colorWorkOrders" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22d3ee" />
+                      <stop offset="95%" stopColor="#0891b2" />
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="dashboard-grid-2cols">
+          {/* Contratos Activos por Proyecto */}
+          <div className="dashboard-section">
+            <h2>Contratos Activos por Proyecto</h2>
+            {contractsByProject.length === 0 ? (
+              <p className="empty-message">No hay contratos activos</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Proyecto</th>
+                    <th>Contratos</th>
+                    <th>Valor Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contractsByProject.map((item) => (
+                    <tr key={item.projectId}>
+                      <td>{item.projectName}</td>
+                      <td>{item.contractCount}</td>
+                      <td>${item.totalValue.toLocaleString('es-CL')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Órdenes de Trabajo Activas por Proyecto */}
+          <div className="dashboard-section">
+            <h2>Órdenes de Trabajo Activas por Proyecto</h2>
+            {workOrdersByProject.length === 0 ? (
+              <p className="empty-message">No hay órdenes de trabajo activas</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Proyecto</th>
+                    <th>Órdenes</th>
+                    <th>Valor Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workOrdersByProject.map((item) => (
+                    <tr key={item.projectId}>
+                      <td>{item.projectName}</td>
+                      <td>{item.workOrderCount}</td>
+                      <td>${item.totalValue.toLocaleString('es-CL')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
         {/* Órdenes de Trabajo por Vencer */}
         <div className="dashboard-section">
           <h2>Órdenes de Trabajo por Vencer</h2>
@@ -274,7 +462,8 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             </table>
           )}
         </div>
-      </div>
+
+        </div>
     </div>
   );
 }

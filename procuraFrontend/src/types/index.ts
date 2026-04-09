@@ -639,6 +639,9 @@ export interface Contract {
   workOrder?: any;
   supplierId: string;
   supplier?: any;
+  // Relación directa con Proyecto
+  projectId?: string | null;
+  project?: { id: string; name: string } | null;
   startDate?: string | null;
   endDate?: string | null;
   value: number;
@@ -681,6 +684,7 @@ export interface CreateContractItemDTO {
 
 export interface CreateContractDTO {
   workOrderId?: string;
+  projectId?: string;
   supplierId: string;
   startDate?: string;
   endDate?: string;

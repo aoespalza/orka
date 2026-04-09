@@ -28,6 +28,9 @@ export interface Contract {
   workOrder?: any;
   supplierId: string;
   supplier?: any;
+  // Relación directa con Proyecto
+  projectId?: string | null;
+  project?: any;
   hasPolicy: boolean;
   startDate?: string | null;
   endDate?: string | null;
@@ -66,6 +69,7 @@ export interface CreateContractItemDTO {
 
 export interface CreateContractDTO {
   workOrderId?: string;
+  projectId?: string;
   supplierId: string;
   startDate?: string;
   endDate?: string;
@@ -88,6 +92,7 @@ export interface CreateContractDTO {
 
 export interface UpdateContractDTO {
   workOrderId?: string;
+  projectId?: string;
   supplierId?: string;
   startDate?: string;
   endDate?: string;
@@ -112,4 +117,5 @@ export interface ContractFilters {
   status?: ContractStatus;
   supplierId?: string;
   workOrderId?: string;
+  projectId?: string;
 }

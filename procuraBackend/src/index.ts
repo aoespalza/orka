@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import routes from './interfaces/http/routes';
+import { schedulerService } from './infrastructure/services/schedulerService';
 
 dotenv.config();
 
@@ -30,6 +31,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  
+  // Iniciar scheduler de notificaciones
+  schedulerService.start().catch(err => {
+    console.error('[Scheduler] Error al iniciar:', err);
+  });
 });
 
 export default app;

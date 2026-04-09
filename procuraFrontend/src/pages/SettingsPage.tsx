@@ -53,10 +53,27 @@ export default function SettingsPage() {
     } else if (activeTab === 'notifications') {
       loadNotificationPreview();
       loadNotificationRecipients();
+      loadNotificationScheduleTime();
     } else {
       loadSettings();
     }
   }, [activeTab]);
+
+  // Load notification schedule time
+  const loadNotificationScheduleTime = async () => {
+    try {
+      const allSettings = await api.getSettings();
+      const scheduleSetting = allSettings.find((s: any) => s.key === 'NOTIFICATION_SCHEDULE_TIME');
+      if (scheduleSetting) {
+        setSettings(prev => ({ ...prev, NOTIFICATION_SCHEDULE_TIME: { ...prev['NOTIFICATION_SCHEDULE_TIME'], value: scheduleSetting.value, category: scheduleSetting.category } }));
+      } else {
+        // Create default if not exists
+        setSettings(prev => ({ ...prev, NOTIFICATION_SCHEDULE_TIME: { key: 'NOTIFICATION_SCHEDULE_TIME', value: '08:00', category: 'notification', description: '' } }));
+      }
+    } catch (e) {
+      console.error('Error loading notification schedule:', e);
+    }
+  };
 
   // Notifications
   const loadNotificationPreview = async () => {
@@ -197,6 +214,8 @@ export default function SettingsPage() {
           from: (settings['EMAIL_FROM']?.value || '').trim()
         };
         await api.saveEmailSettings(emailSettings);
+      } else if (activeTab === 'notifications' && key === 'NOTIFICATION_SCHEDULE_TIME') {
+        await api.updateSetting(key, value, 'notification');
       } else {
         await api.updateSetting(key, value);
       }
@@ -431,6 +450,26 @@ export default function SettingsPage() {
             </button>
           </div>
           <span className="help-text">Cantidad de días hacia adelante para buscar items próximos a vencer</span>
+        </div>
+
+        <div className="form-group" style={{ marginTop: '20px' }}>
+          <label>⏰ Horario de envío automático</label>
+          <div className="form-row">
+            <input
+              type="time"
+              value={settings['NOTIFICATION_SCHEDULE_TIME']?.value || '08:00'}
+              onChange={(e) => setSettings(prev => ({ ...prev, NOTIFICATION_SCHEDULE_TIME: { ...prev['NOTIFICATION_SCHEDULE_TIME'], value: e.target.value } }))}
+              style={{ maxWidth: '150px' }}
+            />
+            <button 
+              className="btn-secondary" 
+              onClick={() => handleSave('NOTIFICATION_SCHEDULE_TIME', settings['NOTIFICATION_SCHEDULE_TIME']?.value || '08:00')}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Guardando...' : '💾 Guardar'}
+            </button>
+          </div>
+          <span className="help-text">Las notificaciones se enviarán automáticamente a esta hora cada día</span>
         </div>
 
         <div className="notification-actions">

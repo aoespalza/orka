@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate, authorize } from '../../../shared/middleware/auth';
 import { settingsRepository } from '../../../infrastructure/repositories/settingsRepository';
 import { emailService } from '../../../infrastructure/services/emailService';
+import { schedulerService } from '../../../infrastructure/services/schedulerService';
 
 const router = Router();
 
@@ -70,6 +71,12 @@ router.put('/', authenticate, authorize('ADMIN'), async (req, res) => {
         return { key: setting.key, value: setting.isSecret ? '••••••••' : setting.value };
       })
     );
+    
+    // Refresh scheduler if schedule time was changed
+    const scheduleSetting = settings.find((s: any) => s.key === 'NOTIFICATION_SCHEDULE_TIME');
+    if (scheduleSetting) {
+      await schedulerService.refreshSchedule();
+    }
     
     res.json(results);
   } catch (error) {
@@ -231,6 +238,11 @@ router.put('/:key', authenticate, authorize('ADMIN'), async (req, res) => {
       category,
       isSecret
     });
+    
+    // Refresh scheduler if schedule time was changed
+    if (key === 'NOTIFICATION_SCHEDULE_TIME') {
+      await schedulerService.refreshSchedule();
+    }
     
     res.json({ key: setting.key, value: setting.isSecret ? '••••••••' : setting.value });
   } catch (error) {

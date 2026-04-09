@@ -52,10 +52,12 @@ export default function WorkOrdersPage() {
 
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrder | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [supplierFilter, setSupplierFilter] = useState<string>('');
+  const [projectFilter, setProjectFilter] = useState<string>('');
 
   useEffect(() => {
     loadWorkOrders(); loadSuppliers(); loadProjects(); loadCompanySettings();
-  }, [statusFilter]);
+  }, [statusFilter, supplierFilter, projectFilter]);
 
   // Effect separado para abrir orden desde el dashboard
   useEffect(() => {
@@ -127,7 +129,13 @@ export default function WorkOrdersPage() {
       const data = await api.getWorkOrders();
       let filtered = data;
       if (statusFilter) {
-        filtered = data.filter((wo: WorkOrder) => wo.status === statusFilter);
+        filtered = filtered.filter((wo: WorkOrder) => wo.status === statusFilter);
+      }
+      if (supplierFilter) {
+        filtered = filtered.filter((wo: WorkOrder) => wo.supplierId === supplierFilter);
+      }
+      if (projectFilter) {
+        filtered = filtered.filter((wo: WorkOrder) => wo.projectId === projectFilter);
       }
       setWorkOrders(filtered);
     } catch (error) {
@@ -413,6 +421,28 @@ export default function WorkOrdersPage() {
           <option value="">Todos los estados</option>
           {STATUS_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={supplierFilter}
+          onChange={(e) => setSupplierFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="">Todos los proveedores</option>
+          {suppliers.map(sup => (
+            <option key={sup.id} value={sup.id}>{sup.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="">Todos los proyectos</option>
+          {projects.map(proj => (
+            <option key={proj.id} value={proj.id}>{proj.name}</option>
           ))}
         </select>
       </div>

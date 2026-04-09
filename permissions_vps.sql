@@ -1,0 +1,19 @@
+-- Permisos para Orka Reducida
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'quotations_create', 'Crear Cotizaciones', 'quotations', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'quotations_approve', 'Aprobar Cotizaciones', 'quotations', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'orders_view', 'Ver Ordenes', 'orders', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'orders_create', 'Crear Ordenes', 'orders', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'orders_approve', 'Aprobar Ordenes', 'orders', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'orders_receive', 'Recibir Ordenes', 'orders', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'contracts_view', 'Ver Contratos', 'contracts', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'contracts_create', 'Crear Contratos', 'contracts', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'contracts_edit', 'Editar Contratos', 'contracts', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'contracts_delete', 'Eliminar Contratos', 'contracts', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'reports_view', 'Ver Reportes', 'reports', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'reports_export', 'Exportar Reportes', 'reports', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'settings_view', 'Ver Configuracion', 'settings', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'settings_edit', 'Editar Configuracion', 'settings', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'users_view', 'Ver Usuarios', 'users', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'users_create', 'Crear Usuarios', 'users', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'users_edit', 'Editar Usuarios', 'users', true, NOW(), NOW());
+INSERT INTO "Permission" (id, code, name, category, "isActive", "createdAt", "updatedAt") VALUES (gen_random_uuid(), 'users_delete', 'Eliminar Usuarios', 'users', true, NOW(), NOW());

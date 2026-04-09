@@ -109,6 +109,18 @@
   gap: 24px;
 }
 
+.dashboard-grid-2cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid-2cols {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dashboard-section {
   background: white;
   border-radius: 12px;

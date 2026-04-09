@@ -37,9 +37,24 @@ class NotificationService {
     }
   }
 
-  // Obtener destinatarios para notificaciones
+  // Obtener destinatarios para notificaciones - primero de settings, luego de usuarios DB
   private async getRecipients(): Promise<{ email: string; name: string }[]> {
     try {
+      // 1. Buscar destinatarios configurados en settings (notification_email_*)
+      const notificationSettings = await prisma.setting.findMany({
+        where: { key: { startsWith: 'notification_email_' } }
+      });
+      
+      if (notificationSettings.length > 0) {
+        console.log(`[NotificationService] Usando ${notificationSettings.length} destinatarios de settings`);
+        return notificationSettings.map(s => ({ 
+          email: s.value, 
+          name: s.value.split('@')[0] 
+        }));
+      }
+      
+      // 2. Si no hay destinatarios en settings, buscar usuarios activos
+      console.log('[NotificationService] No hay destinatarios en settings, buscando usuarios...');
       const users = await prisma.user.findMany({
         where: {
           role: { in: ['ADMIN', 'PURCHASE_MANAGER'] },
@@ -51,12 +66,13 @@ class NotificationService {
       return users
         .filter(u => u.email)
         .map(u => ({ email: u.email!, name: u.name || u.email!.split('@')[0] }));
-    } catch {
+    } catch (error) {
+      console.error('[NotificationService] Error getting recipients:', error);
       return [];
     }
   }
 
-  // Consultar contratos próximos a vencer
+  // Consultar contratos próximos a vencer (incluye los próximos a vencer y los ya vencidos)
   private async getExpiringContracts(days: number): Promise<ExpiryItem[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -64,13 +80,17 @@ class NotificationService {
     const futureDate = new Date(today);
     futureDate.setDate(futureDate.getDate() + days);
 
+    // Buscar contratos con fecha fin desde hace 30 días hasta futuro
+    const pastDate = new Date(today);
+    pastDate.setDate(pastDate.getDate() - 30); // Incluir los vencidos en los últimos 30 días
+
     const contracts = await prisma.contract.findMany({
       where: {
         endDate: {
-          gte: today,
+          gte: pastDate,
           lte: futureDate
         },
-        status: { in: ['ACTIVE', 'DRAFT'] }
+        status: { in: ['ACTIVE', 'DRAFT', 'COMPLETED'] }
       },
       include: { supplier: true },
       orderBy: { endDate: 'asc' }
@@ -88,7 +108,7 @@ class NotificationService {
     }));
   }
 
-  // Consultar órdenes de trabajo próximas a vencer
+  // Consultar órdenes de trabajo próximas a vencer (incluye los próximos a vencer y los ya vencidos)
   private async getExpiringWorkOrders(days: number): Promise<ExpiryItem[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -96,13 +116,17 @@ class NotificationService {
     const futureDate = new Date(today);
     futureDate.setDate(futureDate.getDate() + days);
 
+    // Buscar OTs con fecha fin desde hace 30 días hasta futuro
+    const pastDate = new Date(today);
+    pastDate.setDate(pastDate.getDate() - 30); // Incluir los vencidos en los últimos 30 días
+
     const workOrders = await prisma.workOrder.findMany({
       where: {
         endDate: {
-          gte: today,
+          gte: pastDate,
           lte: futureDate
         },
-        status: { in: ['APPROVED', 'IN_PROGRESS', 'DRAFT'] }
+        status: { in: ['APPROVED', 'IN_PROGRESS', 'DRAFT', 'COMPLETED'] }
       },
       include: { supplier: true },
       orderBy: { endDate: 'asc' }

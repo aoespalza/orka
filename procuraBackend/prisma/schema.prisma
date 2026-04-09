@@ -200,6 +200,9 @@ model Project {
   // Órdenes de trabajo asociadas
   workOrders  WorkOrder[]
   
+  // Contratos asociados directamente
+  contracts   Contract[]
+  
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -325,6 +328,10 @@ model Contract {
   workOrder       WorkOrder?     @relation(fields: [workOrderId], references: [id])
   supplierId      String
   supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  
+  // Relación directa con Proyecto (sin pasar por WorkOrder)
+  projectId       String?
+  project         Project?       @relation(fields: [projectId], references: [id])
   
   // Campos principales
   startDate       DateTime?

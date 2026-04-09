@@ -8,9 +8,10 @@ RUN npm install
 COPY . .
 
 # Generate Prisma client first
-RUN npx prisma generate
+RUN npm cache clean --force && npm rebuild
+RUN node node_modules/.bin/prisma generate
 
-RUN npx tsc
+RUN node node_modules/.bin/tsc
 
 EXPOSE 3006
 
