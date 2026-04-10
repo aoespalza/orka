@@ -661,6 +661,9 @@ export interface Contract {
   // Checklist de documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
+  // Fechas póliza
+  polizaStartDate?: string | null;
+  polizaEndDate?: string | null;
   // Campo calculado para semáforo
   daysUntilExpiration?: number | null;
   createdAt: string;
@@ -701,6 +704,9 @@ export interface CreateContractDTO {
   // Checklist de documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
+  // Fechas póliza
+  polizaStartDate?: string;
+  polizaEndDate?: string;
   // Items
   items?: CreateContractItemDTO[];
 }

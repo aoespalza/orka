@@ -26,9 +26,39 @@ export default function SettingsPage() {
 
   // Notifications state
   const [notificationPreview, setNotificationPreview] = useState<any>(null);
+  const [policiesPreview, setPoliciesPreview] = useState<any>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isSendingNotifications, setIsSendingNotifications] = useState(false);
   const [notificationDays, setNotificationDays] = useState(7);
+
+  // Load notification days from settings on mount
+  useEffect(() => {
+    const loadNotificationDays = async () => {
+      try {
+        const allSettings = await api.getSettings();
+        const daysSetting = allSettings.find((s: any) => s.key === 'NOTIFICATION_DAYS');
+        if (daysSetting && daysSetting.value) {
+          setNotificationDays(parseInt(daysSetting.value));
+        }
+      } catch (e) {
+        console.error('Error loading notification days:', e);
+      }
+    };
+    loadNotificationDays();
+  }, []);
+
+  const handleSaveNotificationDays = async () => {
+    try {
+      await api.updateSetting('NOTIFICATION_DAYS', String(notificationDays), 'notification');
+      setMessage({ type: 'success', text: 'Días de anticipación guardados correctamente' });
+      setTimeout(() => setMessage(null), 3000);
+      // Refresh preview with new days
+      loadNotificationPreview();
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || error.response?.data?.error || 'Error al guardar' });
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
   const [notificationRecipients, setNotificationRecipients] = useState<string[]>([]);
   const [newRecipientEmail, setNewRecipientEmail] = useState('');
 
@@ -87,6 +117,23 @@ export default function SettingsPage() {
     }
     setIsLoadingPreview(false);
   };
+
+  const loadPoliciesPreview = async () => {
+    try {
+      const preview = await api.getPoliciesPreview(30);
+      setPoliciesPreview(preview);
+    } catch (e) {
+      console.error('Error loading policies preview:', e);
+    }
+  };
+
+  // Cargar ambos previews cuando cambia la pestaña de notificaciones
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      loadNotificationPreview();
+      loadPoliciesPreview();
+    }
+  }, [activeTab]);
 
   const handleSendNotifications = async () => {
     if (!confirm('¿Enviar notificaciones de vencimiento a todos los destinatarios?')) return;
@@ -442,6 +489,13 @@ export default function SettingsPage() {
               style={{ maxWidth: '100px' }}
             />
             <button 
+              className="btn-primary" 
+              onClick={handleSaveNotificationDays}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Guardando...' : '💾 Guardar'}
+            </button>
+            <button 
               className="btn-secondary" 
               onClick={loadNotificationPreview}
               disabled={isLoadingPreview}
@@ -502,10 +556,17 @@ export default function SettingsPage() {
                 <span className="summary-label">Órdenes de Trabajo</span>
               </div>
             </div>
+            <div className="summary-card summary-card--policies">
+              <span className="summary-icon">📋</span>
+              <div className="summary-content">
+                <span className="summary-count">{policiesPreview?.policies?.length || 0}</span>
+                <span className="summary-label">Pólizas</span>
+              </div>
+            </div>
             <div className="summary-card summary-card--total">
               <span className="summary-icon">📊</span>
               <div className="summary-content">
-                <span className="summary-count">{notificationPreview.total || 0}</span>
+                <span className="summary-count">{(notificationPreview.contracts?.length || 0) + (notificationPreview.workOrders?.length || 0) + (policiesPreview?.policies?.length || 0)}</span>
                 <span className="summary-label">Total</span>
               </div>
             </div>
@@ -577,6 +638,46 @@ export default function SettingsPage() {
             <div className="preview-empty">
               <span className="empty-icon">✅</span>
               <p>No hay contratos ni órdenes de trabajo próximos a vencer en los próximos {notificationDays} días.</p>
+            </div>
+          )}
+
+          {/* Pólizas Section */}
+          {policiesPreview?.policies?.length > 0 && (
+            <div className="preview-section">
+              <h4>📋 Pólizas próximas a vencer o vencidas</h4>
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>Contrato</th>
+                    <th>Proveedor</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Días</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {policiesPreview.policies.map((policy: any) => (
+                    <tr key={policy.id} className={policy.isExpired ? 'row-critical' : policy.daysUntilExpiration <= 7 ? 'row-warning' : ''}>
+                      <td><strong>{policy.contractCode}</strong></td>
+                      <td>{policy.supplierName}</td>
+                      <td>{new Date(policy.startDate).toLocaleDateString('es-CL')}</td>
+                      <td>{new Date(policy.endDate).toLocaleDateString('es-CL')}</td>
+                      <td className={policy.isExpired ? 'text-critical' : policy.daysUntilExpiration <= 3 ? 'text-critical' : policy.daysUntilExpiration <= 7 ? 'text-warning' : 'text-ok'}>
+                        {policy.isExpired ? 'VENCIDA' : policy.daysUntilExpiration}
+                      </td>
+                      <td>{policy.isExpired ? '🔴' : policy.daysUntilExpiration <= 3 ? '🔴' : policy.daysUntilExpiration <= 7 ? '🟡' : '🟢'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {policiesPreview?.policies?.length === 0 && notificationPreview.total === 0 && (
+            <div className="preview-empty">
+              <span className="empty-icon">✅</span>
+              <p>No hay pólizas próximas a vencer en los próximos 30 días.</p>
             </div>
           )}
         </div>

@@ -342,6 +342,10 @@ model Contract {
   docContratoFirmado String       @default("NO")  // SI, NO
   docRequierePoliza  String       @default("N/A") // SI, NO, N/A
   
+  // Fechas de póliza
+  polizaStartDate    DateTime?    // Fecha inicio de póliza
+  polizaEndDate     DateTime?    // Fecha fin de póliza
+  
   // FIC
   fic             FicStatus      @default(NO)
   

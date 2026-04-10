@@ -17,6 +17,12 @@ const FIC_OPTIONS = [
   { value: 'SI', label: 'Sí' }
 ];
 
+const POLIZA_OPTIONS = [
+  { value: 'NO', label: 'No' },
+  { value: 'SI', label: 'Sí' },
+  { value: 'N/A', label: 'N/A' }
+];
+
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -88,6 +94,8 @@ export default function ContractsPage() {
     observations: '',
     docContratoFirmado: 'NO',
     docRequierePoliza: 'N/A',
+    polizaStartDate: '',
+    polizaEndDate: '',
     items: []
   });
 
@@ -170,6 +178,8 @@ export default function ContractsPage() {
       observations: contract.observations || '',
       docContratoFirmado: contract.docContratoFirmado || 'NO',
       docRequierePoliza: contract.docRequierePoliza || 'N/A',
+      polizaStartDate: contract.polizaStartDate ? contract.polizaStartDate.split('T')[0] : '',
+      polizaEndDate: contract.polizaEndDate ? contract.polizaEndDate.split('T')[0] : '',
       items: contract.items?.map(item => ({
         materialId: item.materialId,
         description: item.description,
@@ -299,16 +309,50 @@ export default function ContractsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Verificar si se está agregando un OtroSi y si requiere póliza
+    const hasOtroSi = formData.otroSiNumber || formData.otroSiEndDate;
+    const requiresPoliza = formData.docRequierePoliza === 'SI';
+    let shouldNotifyPolicyUpdate = false;
+    
+    if (hasOtroSi && requiresPoliza) {
+      const confirmSubmit = window.confirm(
+        '⚠️ El contrato requiere póliza y se está agregando un Otro Sí.\n\n' +
+        '¿Desea continuar sin actualizar las fechas de la póliza?\n\n' +
+        'Recuerde que debe actualizar la fecha de vencimiento de la póliza para que las notificaciones funcionen correctamente.'
+      );
+      if (!confirmSubmit) {
+        return;
+      }
+      shouldNotifyPolicyUpdate = true;
+    }
+    
     try {
       const contractData = {
         ...formData,
         items: contractItems
       };
+      
+      let savedContractId = null;
       if (editingContract) {
         await api.updateContract(editingContract.id, contractData);
+        savedContractId = editingContract.id;
       } else {
-        await api.createContract(contractData);
+        const result = await api.createContract(contractData);
+        savedContractId = result.id;
       }
+      
+      // Enviar notificación de actualización de póliza si aplica
+      if (shouldNotifyPolicyUpdate && savedContractId) {
+        try {
+          await api.notifyPolicyUpdate([savedContractId]);
+          alert('✅ Contrato guardado. Se ha enviado un email recordatorio sobre la actualización de la póliza.');
+        } catch (notifyError) {
+          console.error('Error al enviar notificación de póliza:', notifyError);
+          alert('✅ Contrato guardado (sin notificación de póliza)');
+        }
+      }
+      
       setShowModal(false);
       loadContracts();
       resetForm();
@@ -562,6 +606,36 @@ export default function ContractsPage() {
                       />
                       ✓ Contrato Firmado
                     </label>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Requiere Póliza</label>
+                  <select value={formData.docRequierePoliza} onChange={e => setFormData({...formData, docRequierePoliza: e.target.value as any})}>
+                    {POLIZA_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {formData.docRequierePoliza === 'SI' && (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Fecha Inicio Póliza</label>
+                      <input
+                        type="date"
+                        value={formData.polizaStartDate || ''}
+                        onChange={e => setFormData({...formData, polizaStartDate: e.target.value})}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Fecha Fin Póliza</label>
+                      <input
+                        type="date"
+                        value={formData.polizaEndDate || ''}
+                        onChange={e => setFormData({...formData, polizaEndDate: e.target.value})}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

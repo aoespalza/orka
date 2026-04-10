@@ -16,6 +16,17 @@ export interface ExpiryItem {
   status: string;
 }
 
+export interface PolicyExpiryItem {
+  id: string;
+  code: string;
+  contractCode: string;
+  supplierName: string;
+  startDate: Date;
+  endDate: Date;
+  daysUntilExpiration: number;
+  isExpired: boolean;
+}
+
 export interface NotificationResult {
   success: boolean;
   contractsFound: number;
@@ -295,19 +306,21 @@ class NotificationService {
       // Consultar items próximos a vencer
       const contracts = await this.getExpiringContracts(days);
       const workOrders = await this.getExpiringWorkOrders(days);
+      const policies = await this.getExpiringPolicies(30); // 30 días por defecto para pólizas
 
       result.contractsFound = contracts.length;
       result.workOrdersFound = workOrders.length;
 
       // Si no hay nada que notificar, salir temprano
-      if (contracts.length === 0 && workOrders.length === 0) {
+      if (contracts.length === 0 && workOrders.length === 0 && policies.length === 0) {
         console.log(`[NotificationService] No hay items próximos a vencer en ${days} días`);
         result.success = true;
         return result;
       }
 
-      // Generar HTML del email
-      const html = this.generateEmailHtml(contracts, workOrders, days);
+      // Generar HTML del email (incluyendo pólizas)
+      const policiesHtml = this.generatePoliciesEmailHtml(policies, 30);
+      const html = this.generateEmailHtml(contracts, workOrders, days) + policiesHtml;
       const companyName = process.env.COMPANY_NAME || 'Orka Sistema';
 
       // Enviar a cada destinatario
@@ -315,7 +328,7 @@ class NotificationService {
         try {
           const emailResult = await emailService.send({
             to: recipient.email,
-            subject: `🔔 Recordatorio: ${contracts.length + workOrders.length} items próximos a vencer - ${companyName}`,
+            subject: `🔔 Recordatorio: ${contracts.length + workOrders.length} items y ${policies.length} pólizas próximos a vencer - ${companyName}`,
             html
           });
 
@@ -345,6 +358,219 @@ class NotificationService {
     const contracts = await this.getExpiringContracts(days);
     const workOrders = await this.getExpiringWorkOrders(days);
     return { contracts, workOrders };
+  }
+
+  // Consultar pólizas próximas a vencer o vencidas
+  async getExpiringPolicies(days: number = 30): Promise<PolicyExpiryItem[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + days);
+
+    // Buscar contratos que requieren póliza y tienen fecha de póliza
+    const contracts = await prisma.contract.findMany({
+      where: {
+        docRequierePoliza: 'SI',
+        polizaEndDate: {
+          gte: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000), // Desde 30 días atrás
+          lte: futureDate
+        }
+      },
+      include: { supplier: true },
+      orderBy: { polizaEndDate: 'asc' }
+    });
+
+    return contracts
+      .filter(c => c.polizaEndDate)
+      .map(c => {
+        const daysUntil = Math.ceil((c.polizaEndDate!.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+          id: c.id,
+          code: c.code,
+          contractCode: c.code,
+          supplierName: c.supplier?.name || 'N/A',
+          startDate: c.polizaStartDate!,
+          endDate: c.polizaEndDate!,
+          daysUntilExpiration: daysUntil,
+          isExpired: daysUntil < 0
+        };
+      });
+  }
+
+  // Generar HTML para pólizas
+  generatePoliciesEmailHtml(policies: PolicyExpiryItem[], days: number): string {
+    const today = new Date().toLocaleDateString('es-CL');
+    
+    if (policies.length === 0) {
+      return `
+        <p style="text-align: center; color: #388e3c; font-size: 16px;">
+          ✅ No hay pólizas próximas a vencer en los próximos ${days} días.
+        </p>
+      `;
+    }
+
+    const policiesHtml = policies.map(p => `
+      <tr style="${p.daysUntilExpiration <= 3 ? 'background-color: #ffebee;' : p.daysUntilExpiration <= 7 ? 'background-color: #fff3e0;' : p.isExpired ? 'background-color: #ffcdd2;' : ''}">
+        <td style="padding: 8px; border: 1px solid #ddd;"><strong>${p.contractCode}</strong></td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${p.supplierName}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${new Date(p.startDate).toLocaleDateString('es-CL')}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${new Date(p.endDate).toLocaleDateString('es-CL')}</td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${p.isExpired ? '#d32f2f' : p.daysUntilExpiration <= 3 ? '#d32f2f' : p.daysUntilExpiration <= 7 ? '#f57c00' : '#388e3c'}">
+          ${p.isExpired ? 'VENCIDA' : p.daysUntilExpiration}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${p.isExpired ? '🔴' : p.daysUntilExpiration <= 3 ? '🔴' : p.daysUntilExpiration <= 7 ? '🟡' : '🟢'}
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <h3 style="color: #0A2540; margin-top: 20px;">📋 Pólizas próximas a vencer (${policies.length})</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <thead>
+          <tr style="background-color: #f0f0f0;">
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Contrato</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Proveedor</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Inicio</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Fin</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Días</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${policiesHtml}
+        </tbody>
+      </table>
+      <p style="margin-top: 10px; font-size: 12px; color: #666;">
+        <strong>Leyenda:</strong> 🔴 Vencida/crítica | 🟡 Advertencia | 🟢 OK
+      </p>
+    `;
+  }
+
+  // Notificar actualización de póliza por OtroSi
+  async notifyPolicyUpdateNeeded(contracts: { id: string; code: string; supplierName: string; endDate: Date; polizaEndDate: Date | null }[]): Promise<{ success: boolean; emailsSent: number; errors: string[] }> {
+    const result = { success: false, emailsSent: 0, errors: [] as string[] };
+
+    try {
+      const isConfigured = await emailService.isConfigured();
+      if (!isConfigured) {
+        result.errors.push('SMTP no configurado');
+        return result;
+      }
+
+      const recipients = await this.getRecipients();
+      if (recipients.length === 0) {
+        result.errors.push('No hay destinatarios configurados');
+        return result;
+      }
+
+      if (contracts.length === 0) {
+        result.success = true;
+        return result;
+      }
+
+      const html = this.generatePolicyUpdateEmailHtml(contracts);
+      const companyName = process.env.COMPANY_NAME || 'Orka Sistema';
+
+      for (const recipient of recipients) {
+        try {
+          await emailService.send({
+            to: recipient.email,
+            subject: `⚠️ Actualización de Póliza requerida - ${contracts.length} contrato(s)`,
+            html
+          });
+          result.emailsSent++;
+        } catch (emailError) {
+          console.error(`[NotificationService] Error enviando a ${recipient.email}:`, emailError);
+          result.errors.push(`Error enviando a ${recipient.email}`);
+        }
+      }
+
+      result.success = result.emailsSent > 0;
+      console.log(`[NotificationService] Notificación de pólizas enviada: ${result.emailsSent} emails`);
+    } catch (error: unknown) {
+      console.error('[NotificationService] Error en notifyPolicyUpdateNeeded:', error);
+      result.errors.push((error as Error).message || 'Error desconocido');
+    }
+
+    return result;
+  }
+
+  // Generar HTML para notificación de actualización de póliza
+  generatePolicyUpdateEmailHtml(contracts: { id: string; code: string; supplierName: string; endDate: Date; polizaEndDate: Date | null }[]): string {
+    const today = new Date().toLocaleDateString('es-CL');
+    const companyName = process.env.COMPANY_NAME || 'Orka Sistema';
+
+    const contractsHtml = contracts.map(c => {
+      const needsUpdate = !c.polizaEndDate || new Date(c.polizaEndDate) <= new Date(c.endDate);
+      return `
+        <tr style="${needsUpdate ? 'background-color: #fff3e0;' : ''}">
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>${c.code}</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${c.supplierName}</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${new Date(c.endDate).toLocaleDateString('es-CL')}</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${c.polizaEndDate ? new Date(c.polizaEndDate).toLocaleDateString('es-CL') : '<span style="color: #d32f2f;">Sin fecha</span>'}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${needsUpdate ? '#f57c00' : '#388e3c'}">
+            ${needsUpdate ? '⚠️ Actualizar' : '✅ OK'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #0A2540 0%, #1a3a5c 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
+          .alert { background: #fff3e0; border-left: 4px solid #f57c00; padding: 15px; margin: 15px 0; }
+          .footer { background: #e0e0e0; padding: 15px; text-align: center; font-size: 12px; color: #666; border-radius: 0 0 8px 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>🔔 Recordatorio de Actualización de Póliza</h2>
+            <p>${companyName}</p>
+          </div>
+          <div class="content">
+            <div class="alert">
+              <strong>⚠️ Importante:</strong> Se han agregado Otros Sí a contratos que requieren póliza. 
+              Por favor revise y actualice las fechas de vencimiento de las pólizas para mantener el control de vencimientos.
+            </div>
+
+            <h3 style="color: #0A2540;">Contratos que pueden necesitar actualización de póliza:</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+              <thead>
+                <tr style="background-color: #f0f0f0;">
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Código</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Proveedor</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Fin Contrato</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Fin Póliza</th>
+                  <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${contractsHtml}
+              </tbody>
+            </table>
+
+            <p style="margin-top: 20px;">
+              <strong>Para actualizar las pólizas:</strong> Ingrese a Módulo de Contratos, seleccione el contrato y actualice las fechas de póliza en la sección "Documentos".
+            </p>
+          </div>
+          <div class="footer">
+            <p>Este es un mensaje automático de ${companyName}</p>
+            <p>Fecha: ${today}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 }
 

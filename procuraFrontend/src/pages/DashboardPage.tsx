@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../api';
 import type { DashboardStats, WorkOrder, Contract } from '../types';
@@ -29,6 +29,8 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [expiringContracts, setExpiringContracts] = useState<Contract[]>([]);
   const [contractsByProject, setContractsByProject] = useState<ContractsByProject[]>([]);
   const [workOrdersByProject, setWorkOrdersByProject] = useState<WorkOrdersByProject[]>([]);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [chartReady, setChartReady] = useState(false);
 
   // Preparar datos para la gráfica
   const chartData = useMemo(() => {
@@ -59,6 +61,23 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
     loadExpiringContracts();
     loadContractsByProject();
     loadWorkOrdersByProject();
+  }, []);
+
+  // Detect when chart container has dimensions
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+    
+    const checkDimensions = () => {
+      if (chartContainerRef.current && chartContainerRef.current.offsetWidth > 0 && chartContainerRef.current.offsetHeight > 0) {
+        setChartReady(true);
+      }
+    };
+    
+    // Check immediately and after a short delay
+    checkDimensions();
+    const timer = setTimeout(checkDimensions, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const loadStats = async () => {
@@ -249,9 +268,10 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
           {chartData.length === 0 ? (
             <p className="empty-message">No hay datos para mostrar</p>
           ) : (
-            <div style={{ width: '100%', height: 320 }}>
-              <ResponsiveContainer>
-                <BarChart 
+            <div ref={chartContainerRef} style={{ width: '100%', height: 320, minHeight: 200 }}>
+              {chartReady ? (
+                <ResponsiveContainer>
+                  <BarChart 
                   data={chartData} 
                   margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
                   barCategoryGap="20%"
@@ -311,6 +331,11 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
                   </defs>
                 </BarChart>
               </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
+                  Cargando gráfico...
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -421,8 +421,18 @@ class ApiClient {
     return response.data;
   }
 
+  async getPoliciesPreview(days: number = 30): Promise<any> {
+    const response = await this.client.get<any>(`/notifications/policies-preview?days=${days}`);
+    return response.data;
+  }
+
   async sendExpiryReminders(): Promise<any> {
     const response = await this.client.post<any>('/notifications/send-expiry-reminders');
+    return response.data;
+  }
+
+  async notifyPolicyUpdate(contractIds: string[]): Promise<any> {
+    const response = await this.client.post<any>('/notifications/policy-update', { contractIds });
     return response.data;
   }
 

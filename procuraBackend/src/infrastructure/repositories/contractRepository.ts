@@ -157,6 +157,9 @@ export class ContractRepository {
         // Checklist documentos
         docContratoFirmado: data.docContratoFirmado || 'NO',
         docRequierePoliza: data.docRequierePoliza || 'N/A',
+        // Fechas póliza
+        polizaStartDate: data.polizaStartDate ? new Date(data.polizaStartDate) : null,
+        polizaEndDate: data.polizaEndDate ? new Date(data.polizaEndDate) : null,
         fic: data.fic || 'NO',
         actaStartDate: data.actaStartDate ? new Date(data.actaStartDate) : null,
         actaEndDate: data.actaEndDate ? new Date(data.actaEndDate) : null,
@@ -258,6 +261,8 @@ export class ContractRepository {
         ...(data.value !== undefined && { value: data.value }),
         ...(data.docContratoFirmado && { docContratoFirmado: data.docContratoFirmado }),
         ...(data.docRequierePoliza && { docRequierePoliza: data.docRequierePoliza }),
+        ...(data.polizaStartDate !== undefined && { polizaStartDate: data.polizaStartDate ? new Date(data.polizaStartDate) : null }),
+        ...(data.polizaEndDate !== undefined && { polizaEndDate: data.polizaEndDate ? new Date(data.polizaEndDate) : null }),
         ...(data.fic && { fic: data.fic }),
         ...(data.actaStartDate !== undefined && { actaStartDate: data.actaStartDate ? new Date(data.actaStartDate) : null }),
         ...(data.actaEndDate !== undefined && { actaEndDate: data.actaEndDate ? new Date(data.actaEndDate) : null }),

@@ -615,17 +615,17 @@
 
 .preview-summary {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
   margin-bottom: 24px;
 }
 
 .summary-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
 }
@@ -640,13 +640,18 @@
   border-color: #fde68a;
 }
 
+.summary-card--policies {
+  background: #f3e8ff;
+  border-color: #d8b4fe;
+}
+
 .summary-card--total {
   background: #ecfdf5;
   border-color: #a7f3d0;
 }
 
 .summary-icon {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .summary-content {
@@ -655,13 +660,13 @@
 }
 
 .summary-count {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: #111827;
 }
 
 .summary-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #6b7280;
 }
 
