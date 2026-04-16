@@ -74,6 +74,7 @@ router.get('/contracts-by-project', authenticate, async (req, res) => {
     projects.forEach(project => {
       projectMap.set(project.id, {
         projectId: project.id,
+        projectCode: project.code,
         projectName: project.name,
         contractCount: 0,
         totalValue: 0,
@@ -87,10 +88,12 @@ router.get('/contracts-by-project', authenticate, async (req, res) => {
       const project = contract.project || contract.workOrder?.project;
       const projectId = project?.id || 'sin-proyecto';
       const projectName = project?.name || 'Sin Proyecto';
+      const projectCode = project?.code || '-';
 
       if (!projectMap.has(projectId)) {
         projectMap.set(projectId, {
           projectId,
+          projectCode,
           projectName,
           contractCount: 0,
           totalValue: 0,
@@ -99,6 +102,7 @@ router.get('/contracts-by-project', authenticate, async (req, res) => {
       }
 
       const entry = projectMap.get(projectId);
+      entry.projectCode = projectCode;
       entry.contractCount += 1;
       entry.totalValue += contract.finalValue || contract.value || 0;
       entry.contracts.push({
@@ -144,6 +148,7 @@ router.get('/workorders-by-project', authenticate, async (req, res) => {
     projects.forEach(project => {
       projectMap.set(project.id, {
         projectId: project.id,
+        projectCode: project.code,
         projectName: project.name,
         workOrderCount: 0,
         totalValue: 0,
@@ -156,10 +161,12 @@ router.get('/workorders-by-project', authenticate, async (req, res) => {
       const project = wo.project;
       const projectId = project?.id || 'sin-proyecto';
       const projectName = project?.name || 'Sin Proyecto';
+      const projectCode = project?.code || '-';
 
       if (!projectMap.has(projectId)) {
         projectMap.set(projectId, {
           projectId,
+          projectCode,
           projectName,
           workOrderCount: 0,
           totalValue: 0,
@@ -168,6 +175,7 @@ router.get('/workorders-by-project', authenticate, async (req, res) => {
       }
 
       const entry = projectMap.get(projectId);
+      entry.projectCode = projectCode;
       entry.workOrderCount += 1;
       entry.totalValue += wo.totalValue || 0;
       entry.workOrders.push({

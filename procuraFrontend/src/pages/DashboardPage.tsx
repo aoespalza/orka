@@ -38,18 +38,18 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
     
     // Agregar contratos por proyecto
     contractsByProject.forEach(item => {
-      if (!projectMap.has(item.projectName)) {
-        projectMap.set(item.projectName, { name: item.projectName, contracts: 0, workOrders: 0 });
+      if (!projectMap.has(item.projectCode)) {
+        projectMap.set(item.projectCode, { name: item.projectCode, contracts: 0, workOrders: 0 });
       }
-      projectMap.get(item.projectName).contracts = item.contractCount;
+      projectMap.get(item.projectCode).contracts = item.contractCount;
     });
     
     // Agregar órdenes de trabajo por proyecto
     workOrdersByProject.forEach(item => {
-      if (!projectMap.has(item.projectName)) {
-        projectMap.set(item.projectName, { name: item.projectName, contracts: 0, workOrders: 0 });
+      if (!projectMap.has(item.projectCode)) {
+        projectMap.set(item.projectCode, { name: item.projectCode, contracts: 0, workOrders: 0 });
       }
-      projectMap.get(item.projectName).workOrders = item.workOrderCount;
+      projectMap.get(item.projectCode).workOrders = item.workOrderCount;
     });
     
     return Array.from(projectMap.values());
@@ -63,22 +63,30 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
     loadWorkOrdersByProject();
   }, []);
 
-  // Detect when chart container has dimensions
+  // Detect when chart container has dimensions and data is loaded
   useEffect(() => {
-    if (!chartContainerRef.current) return;
-    
-    const checkDimensions = () => {
-      if (chartContainerRef.current && chartContainerRef.current.offsetWidth > 0 && chartContainerRef.current.offsetHeight > 0) {
+    const checkReady = () => {
+      if (!chartContainerRef.current) return;
+      const hasDimensions = chartContainerRef.current.offsetWidth > 0 && chartContainerRef.current.offsetHeight > 0;
+      const hasData = contractsByProject.length > 0 || workOrdersByProject.length > 0;
+      
+      if (hasDimensions && hasData) {
         setChartReady(true);
       }
     };
     
-    // Check immediately and after a short delay
-    checkDimensions();
-    const timer = setTimeout(checkDimensions, 100);
+    // Check immediately and after a delays
+    checkReady();
+    const timer1 = setTimeout(checkReady, 100);
+    const timer2 = setTimeout(checkReady, 500);
+    const timer3 = setTimeout(checkReady, 1000);
     
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, [contractsByProject, workOrdersByProject]);
 
   const loadStats = async () => {
     try {
@@ -244,24 +252,6 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
       </div>
 
       <div className="dashboard-sections">
-        <div className="dashboard-section">
-          <h2>Acciones Rápidas</h2>
-          <div className="quick-actions">
-            <button className="quick-action-btn" onClick={() => onNavigate?.('materials')}>
-              ➕ Nuevo Material
-            </button>
-            <button className="quick-action-btn" onClick={() => onNavigate?.('suppliers')}>
-              ➕ Nuevo Proveedor
-            </button>
-            <button className="quick-action-btn" onClick={() => onNavigate?.('projects')}>
-              ➕ Nuevo Proyecto
-            </button>
-            <button className="quick-action-btn" onClick={() => onNavigate?.('work-orders')}>
-              ➕ Nueva Orden de Trabajo
-            </button>
-          </div>
-        </div>
-
         {/* Gráfico de Barras: Activos por Proyecto */}
         <div className="dashboard-section">
           <h2>Contratos y Órdenes de Trabajo Activas por Proyecto</h2>

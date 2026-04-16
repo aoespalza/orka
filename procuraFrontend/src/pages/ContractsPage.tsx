@@ -33,11 +33,12 @@ export default function ContractsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [supplierFilter, setSupplierFilter] = useState<string>('');
   const [projectFilter, setProjectFilter] = useState<string>('');
+  const [sortByExpiration, setSortByExpiration] = useState<boolean>(true);
   const [companyInfo, setCompanyInfo] = useState<any>({});
 
   useEffect(() => {
     loadContracts(); loadSuppliers(); loadProjects(); loadCompanySettings();
-  }, [statusFilter, supplierFilter, projectFilter]);
+  }, [statusFilter, supplierFilter, projectFilter, sortByExpiration]);
 
   // Effect para abrir contrato desde el dashboard
   useEffect(() => {
@@ -130,6 +131,16 @@ export default function ContractsPage() {
       }
       if (projectFilter) {
         data = data.filter((c: Contract) => c.projectId === projectFilter);
+      }
+      
+      // Sort by expiration date (nearest first)
+      if (sortByExpiration) {
+        data.sort((a: Contract, b: Contract) => {
+          if (!a.endDate && !b.endDate) return 0;
+          if (!a.endDate) return 1;
+          if (!b.endDate) return -1;
+          return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+        });
       }
       
       setContracts(data);
@@ -313,16 +324,25 @@ export default function ContractsPage() {
     // Verificar si se está agregando un OtroSi y si requiere póliza
     const hasOtroSi = formData.otroSiNumber || formData.otroSiEndDate;
     const requiresPoliza = formData.docRequierePoliza === 'SI';
+    const hasNoPolizaDates = !formData.polizaStartDate || !formData.polizaEndDate;
     let shouldNotifyPolicyUpdate = false;
     
-    if (hasOtroSi && requiresPoliza) {
-      const confirmSubmit = window.confirm(
-        '⚠️ El contrato requiere póliza y se está agregando un Otro Sí.\n\n' +
-        '¿Desea continuar sin actualizar las fechas de la póliza?\n\n' +
-        'Recuerde que debe actualizar la fecha de vencimiento de la póliza para que las notificaciones funcionen correctamente.'
-      );
-      if (!confirmSubmit) {
-        return;
+    // Notificar si: (1) Hay OtroSi + requiere póliza, o (2) Requiere póliza pero no hay fechas de póliza
+    if ((hasOtroSi && requiresPoliza) || (requiresPoliza && hasNoPolizaDates)) {
+      if (hasNoPolizaDates) {
+        const confirmSubmit = window.confirm(
+          '⚠️ El contrato requiere póliza pero no se han establecido las fechas de inicio y fin de la póliza.\n\n' +
+          '¿Desea continuar sin las fechas de póliza?\n\n' +
+          'Las notificaciones de vencimiento de póliza no funcionarán correctamente sin estas fechas.'
+        );
+        if (!confirmSubmit) return;
+      } else if (hasOtroSi) {
+        const confirmSubmit = window.confirm(
+          '⚠️ El contrato requiere póliza y se está agregando un Otro Sí.\n\n' +
+          '¿Desea continuar sin actualizar las fechas de la póliza?\n\n' +
+          'Recuerde que debe actualizar la fecha de vencimiento de la póliza para que las notificaciones funcionen correctamente.'
+        );
+        if (!confirmSubmit) return;
       }
       shouldNotifyPolicyUpdate = true;
     }
@@ -440,6 +460,16 @@ export default function ContractsPage() {
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px' }}>
+          <input 
+            type="checkbox" 
+            checked={sortByExpiration} 
+            onChange={e => setSortByExpiration(e.target.checked)}
+            style={{ width: '18px', height: '18px' }}
+          />
+          <span>Ordenar por vencimiento</span>
+        </label>
       </div>
 
       {isLoading ? (
@@ -566,6 +596,7 @@ export default function ContractsPage() {
                     type="number" 
                     min="0" 
                     max="100" 
+                    step="0.01"
                     value={formData.advancePayment} 
                     onChange={e => setFormData({...formData, advancePayment: Number(e.target.value)})} 
                   />
