@@ -342,10 +342,6 @@ model Contract {
   docContratoFirmado String       @default("NO")  // SI, NO
   docRequierePoliza  String       @default("N/A") // SI, NO, N/A
   
-  // Fechas de póliza
-  polizaStartDate    DateTime?    // Fecha inicio de póliza
-  polizaEndDate     DateTime?    // Fecha fin de póliza
-  
   // FIC
   fic             FicStatus      @default(NO)
   
@@ -370,6 +366,7 @@ model Contract {
   
   // Items del contrato
   items           ContractItem[]
+  policies        Policy[]
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -400,6 +397,33 @@ model ContractItem {
   
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
+}
+
+// Tipos de póliza
+enum PolicyType {
+  CUMPLIMIENTO              // Cumplimiento
+  CALIDAD_SUMINISTROS       // Calidad de Suministros
+  ESTABILIDAD_OBRA          // Estabilidad de Obra/Calidad de Servicio
+  SALARIOS_PRESTACIONES     // Salarios y Prestaciones
+  RESPONSABILIDAD_CIVIL     // Responsabilidad Civil
+  BUEN_MANEJO_ANTICIPO      // Buen Manejo del Anticipo
+}
+
+// Pólizas del contrato
+model Policy {
+  id              String     @id @default(uuid())
+  contractId      String
+  contract        Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  type            PolicyType // Tipo de póliza
+  startDate       DateTime?  // Fecha inicio
+  endDate         DateTime?  // Fecha fin
+  insuredValue    Float      @default(0) // Valor asegurado
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  @@unique([contractId, type]) // Una póliza por tipo por contrato
 }
 
 // ============================================

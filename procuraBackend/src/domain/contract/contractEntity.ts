@@ -86,9 +86,6 @@ export interface CreateContractDTO {
   // Checklist documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
-  // Fechas póliza
-  polizaStartDate?: string;
-  polizaEndDate?: string;
   // Items
   items?: CreateContractItemDTO[];
 }
@@ -112,9 +109,6 @@ export interface UpdateContractDTO {
   // Checklist documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
-  // Fechas póliza
-  polizaStartDate?: string;
-  polizaEndDate?: string;
   // Items
   items?: CreateContractItemDTO[];
 }

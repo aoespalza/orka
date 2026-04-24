@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { supplierController } from './supplierRoutes';
-import { materialController } from './materialRoutes';
 import { authController } from './authRoutes';
 import workOrderController from './workOrderRoutes';
 import projectController from './projectRoutes';
 import contractController from './contractRoutes';
+import policyController from './policyRoutes';
 import dashboardRoutes from './dashboardRoutes';
 import settingsRoutes from './settingsRoutes';
 import uploadRoutes from './uploadRoutes';
@@ -75,13 +75,6 @@ router.put('/suppliers/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'
 router.delete('/suppliers/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), supplierController.delete);
 router.patch('/suppliers/:id/status', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), supplierController.updateStatus);
 
-// Materiales
-router.get('/materials', authenticate, materialController.getAll);
-router.get('/materials/:id', authenticate, materialController.getById);
-router.post('/materials', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), materialController.create);
-router.put('/materials/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), materialController.update);
-router.delete('/materials/:id', authenticate, authorize('ADMIN'), materialController.delete);
-
 // Órdenes de Trabajo
 router.get('/work-orders', authenticate, workOrderController.getAll);
 router.get('/work-orders/:id', authenticate, workOrderController.getById);
@@ -105,6 +98,14 @@ router.post('/contracts', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER', '
 router.put('/contracts/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER', 'PURCHASE_AGENT'), contractController.update);
 router.delete('/contracts/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), contractController.delete);
 router.patch('/contracts/:id/status', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), contractController.updateStatus);
+
+// Pólizas
+router.get('/policies', authenticate, policyController.getAll);
+router.get('/policies/contract/:contractId', authenticate, policyController.getByContractId);
+router.get('/policies/:id', authenticate, policyController.getById);
+router.post('/policies', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER', 'PURCHASE_AGENT'), policyController.create);
+router.put('/policies/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER', 'PURCHASE_AGENT'), policyController.update);
+router.delete('/policies/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), policyController.delete);
 
 // Settings - usar el router de settingsRoutes
 router.use('/settings', settingsRoutes);

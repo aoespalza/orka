@@ -117,7 +117,7 @@ export default function SuppliersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro de eliminar este proveedor?')) return;
+    if (!confirm('¿Está seguro de eliminar este contratista?')) return;
     try {
       await api.deleteSupplier(id);
       loadSuppliers();
@@ -166,18 +166,18 @@ export default function SuppliersPage() {
     <div className="suppliers-page">
       <div className="page-header">
         <div>
-          <h1>Proveedores</h1>
-          <p>Gestión de proveedores y contactos comerciales</p>
+          <h1>Contratistas</h1>
+          <p>Gestión de contratistas y colaboradores</p>
         </div>
         <button className="btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>
-          ➕ Nuevo Proveedor
+          ➕ Nuevo Contratista
         </button>
       </div>
 
       <div className="filters">
         <input
           type="text"
-          placeholder="Buscar proveedores..."
+          placeholder="Buscar contratistas..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="search-input"
@@ -235,7 +235,7 @@ export default function SuppliersPage() {
               ))}
               {(suppliers || []).length === 0 && (
                 <tr>
-                  <td colSpan={8} className="empty">No se encontraron proveedores</td>
+                  <td colSpan={8} className="empty">No se encontraron contratistas</td>
                 </tr>
               )}
             </tbody>
@@ -247,7 +247,7 @@ export default function SuppliersPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal modal--large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingSupplier ? 'Editar Proveedor' : 'Nuevo Proveedor'}</h2>
+              <h2>{editingSupplier ? 'Editar Contratista' : 'Nuevo Contratista'}</h2>
               <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
@@ -429,7 +429,7 @@ export default function SuppliersPage() {
                   Cancelar
                 </button>
                 <button type="submit" className="btn-primary">
-                  {editingSupplier ? 'Guardar Cambios' : 'Crear Proveedor'}
+                  {editingSupplier ? 'Guardar Cambios' : 'Crear Contratista'}
                 </button>
               </div>
             </form>

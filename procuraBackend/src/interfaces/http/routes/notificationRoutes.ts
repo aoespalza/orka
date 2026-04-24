@@ -138,20 +138,35 @@ const notifyPolicyUpdate = async (req: Request, res: Response) => {
         id: true,
         code: true,
         endDate: true,
-        polizaEndDate: true,
-        supplier: { select: { name: true } }
+        supplier: { select: { name: true } },
+        policies: {
+          select: {
+            endDate: true
+          }
+        }
       }
     });
 
-    const contractsWithSupplier = contracts.map((c: any) => ({
-      id: c.id,
-      code: c.code,
-      supplierName: c.supplier.name,
-      endDate: c.endDate,
-      polizaEndDate: c.polizaEndDate
-    }));
+    const contractsWithPolicies = contracts.map((c: any) => {
+      // Obtener la fecha de fin de póliza más lejana
+      const polizaEndDate = c.policies && c.policies.length > 0 
+        ? c.policies.reduce((latest: any, p: any) => {
+            if (!latest) return p.endDate;
+            if (!p.endDate) return latest;
+            return p.endDate > latest ? p.endDate : latest;
+          }, null)
+        : null;
+      
+      return {
+        id: c.id,
+        code: c.code,
+        supplierName: c.supplier.name,
+        endDate: c.endDate,
+        polizaEndDate
+      };
+    });
 
-    const result = await notificationService.notifyPolicyUpdateNeeded(contractsWithSupplier);
+    const result = await notificationService.notifyPolicyUpdateNeeded(contractsWithPolicies);
     
     res.json({
       success: result.success,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import type { WorkOrder, CreateWorkOrderDTO, Supplier, WorkOrderStatus, PaymentType } from '../types';
 import { generateWorkOrderPDF } from '../utils/pdfGenerator';
@@ -32,6 +33,7 @@ const UNIT_OPTIONS = [
 ];
 
 export default function WorkOrdersPage() {
+  const navigate = useNavigate();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -407,7 +409,7 @@ export default function WorkOrdersPage() {
           <h1>Órdenes de Trabajo</h1>
           <p>Gestión de contratos por actividades</p>
         </div>
-        <button className="btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>
+        <button className="btn-primary" onClick={() => navigate('/work-order-new')}>
           ➕ Nueva Orden de Trabajo
         </button>
       </div>
@@ -429,7 +431,7 @@ export default function WorkOrdersPage() {
           onChange={(e) => setSupplierFilter(e.target.value)}
           className="filter-select"
         >
-          <option value="">Todos los proveedores</option>
+          <option value="">Todos los contratistas</option>
           {suppliers.map(sup => (
             <option key={sup.id} value={sup.id}>{sup.name}</option>
           ))}
@@ -457,7 +459,7 @@ export default function WorkOrdersPage() {
                 <th>🔔</th>
                 <th>Código</th>
                 <th>Título</th>
-                <th>Proveedor</th>
+                <th>Contratista</th>
                 <th>Proyecto</th>
                 <th>Valor</th>
                 <th>Estado</th>
@@ -538,7 +540,7 @@ export default function WorkOrdersPage() {
                       onChange={e => setFormData({ ...formData, supplierId: e.target.value })}
                       required
                     >
-                      <option value="">Seleccionar proveedor</option>
+                      <option value="">Seleccionar contratista</option>
                       {suppliers.map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}

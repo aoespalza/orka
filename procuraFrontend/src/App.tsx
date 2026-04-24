@@ -1,17 +1,18 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import MaterialsPage from './pages/MaterialsPage';
 import SuppliersPage from './pages/SuppliersPage';
 import WorkOrdersPage from './pages/WorkOrdersPage';
 import SettingsPage from './pages/SettingsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ContractsPage from './pages/ContractsPage';
+import NewContractPage from './pages/NewContractPage';
+import NewWorkOrderPage from './pages/NewWorkOrderPage';
 import './App.css';
 
-function AppNavigator() {
+function AppNavigator({ showNewContract, showNewWorkOrder }: { showNewContract?: boolean; showNewWorkOrder?: boolean }) {
   const { user, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState<string>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -30,8 +31,7 @@ function AppNavigator() {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', section: 'principal' },
-    { id: 'materials', label: 'Materiales', icon: '📦', section: 'principal' },
-    { id: 'suppliers', label: 'Proveedores', icon: '🏢', section: 'principal' },
+    { id: 'suppliers', label: 'Contratistas', icon: '🏢', section: 'principal' },
     { id: 'work-orders', label: 'Órdenes de Trabajo', icon: '🔧', section: 'operaciones' },
     { id: 'contracts', label: 'Contratos', icon: '📜', section: 'operaciones' },
     { id: 'projects', label: 'Proyectos', icon: '🏗️', section: 'operaciones' },
@@ -68,7 +68,10 @@ function AppNavigator() {
               <button
                 key={item.id}
                 className={`sidebar__link ${currentPage === item.id ? 'sidebar__link--active' : ''}`}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  localStorage.setItem('PROCURA_PAGE', item.id);
+                  window.location.href = '/';
+                }}
               >
                 <span className="sidebar__link-icon">{item.icon}</span>
                 <span>{item.label}</span>
@@ -83,7 +86,10 @@ function AppNavigator() {
               <button
                 key={item.id}
                 className={`sidebar__link ${currentPage === item.id ? 'sidebar__link--active' : ''}`}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  localStorage.setItem('PROCURA_PAGE', item.id);
+                  window.location.href = '/';
+                }}
               >
                 <span className="sidebar__link-icon">{item.icon}</span>
                 <span>{item.label}</span>
@@ -98,7 +104,10 @@ function AppNavigator() {
               <button
                 key={item.id}
                 className={`sidebar__link ${currentPage === item.id ? 'sidebar__link--active' : ''}`}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  localStorage.setItem('PROCURA_PAGE', item.id);
+                  window.location.href = '/';
+                }}
               >
                 <span className="sidebar__link-icon">{item.icon}</span>
                 <span>{item.label}</span>
@@ -128,13 +137,20 @@ function AppNavigator() {
 
       {/* Contenido principal */}
       <main className={`app-main ${sidebarCollapsed ? 'app-main--expanded' : ''}`}>
-        {currentPage === 'dashboard' && <DashboardPage onNavigate={setCurrentPage} />}
-        {currentPage === 'materials' && <MaterialsPage />}
-        {currentPage === 'suppliers' && <SuppliersPage />}
-        {currentPage === 'work-orders' && <WorkOrdersPage />}
-        {currentPage === 'projects' && <ProjectsPage />}
-        {currentPage === 'contracts' && <ContractsPage />}
-        {currentPage === 'settings' && <SettingsPage />}
+        {showNewContract ? (
+          <NewContractPage />
+        ) : showNewWorkOrder ? (
+          <NewWorkOrderPage />
+        ) : (
+          <>
+            {currentPage === 'dashboard' && <DashboardPage onNavigate={setCurrentPage} />}
+            {currentPage === 'suppliers' && <SuppliersPage />}
+            {currentPage === 'work-orders' && <WorkOrdersPage onNavigate={setCurrentPage} />}
+            {currentPage === 'projects' && <ProjectsPage />}
+            {currentPage === 'contracts' && <ContractsPage />}
+            {currentPage === 'settings' && <SettingsPage />}
+          </>
+        )}
       </main>
     </div>
   );
@@ -159,21 +175,50 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppContent() {
+  const navigate = useNavigate();
+
+  const handleAppNavigate = (page: string) => {
+    localStorage.setItem('PROCURA_PAGE', page);
+    navigate('/');
+  };
+
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppNavigator />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/new-contract"
+        element={
+          <ProtectedRoute>
+            <AppNavigator showNewContract={true} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/work-order-new"
+        element={
+          <ProtectedRoute>
+            <AppNavigator showNewWorkOrder={true} />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <AppNavigator />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <AppContent />
       </BrowserRouter>
     </AuthProvider>
   );

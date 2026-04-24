@@ -1,34 +1,50 @@
+version: '3.8'
+
 services:
+  db:
+    image: postgres:14-alpine
+    container_name: orka_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orka_reducida
+    volumes:
+      - orka_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - orka_network
+
   backend:
     build: ./procuraBackend
-    container_name: orka_reducida_backend
+    container_name: orka_backend
     environment:
-      DATABASE_URL: "postgresql://OrDbUser2024:OrStrongPass_69!2024@69.6.234.185:5432/orka_reducida_db?schema=public"
-      JWT_SECRET: "orka-reducida-secret-key-2026"
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/orka_reducida?schema=public"
+      JWT_SECRET: "orka-secret-key-change-in-production"
       JWT_EXPIRES_IN: "24h"
       PORT: "3006"
       NODE_ENV: "production"
+      COMPANY_NAME: "Orka Reducida"
+    depends_on:
+      - db
     ports:
       - "3006:3006"
-    restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
-      - orka_reducida_network
+      - orka_network
 
   frontend:
-    build:
-      context: ./procuraFrontend
-      dockerfile: Dockerfile
-    container_name: orka_reducida_frontend
+    build: ./procuraFrontend
+    container_name: orka_frontend
     depends_on:
       - backend
     ports:
       - "5174:80"
-    restart: unless-stopped
     networks:
-      - orka_reducida_network
+      - orka_network
+
+volumes:
+  orka_db_data:
 
 networks:
-  orka_reducida_network:
+  orka_network:
     driver: bridge

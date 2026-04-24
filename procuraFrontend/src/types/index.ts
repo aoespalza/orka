@@ -200,37 +200,6 @@ export interface CreateSupplierDTO {
 export interface UpdateSupplierDTO extends Partial<CreateSupplierDTO> {}
 
 // ============================================
-// MATERIAL
-// ============================================
-
-export interface Material {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  category: MaterialCategory;
-  unitOfMeasure: UnitOfMeasure;
-  defaultUnitPrice: number | null;
-  minStock: number | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateMaterialDTO {
-  code: string;
-  name: string;
-  description?: string;
-  category: MaterialCategory;
-  unitOfMeasure: UnitOfMeasure;
-  defaultUnitPrice?: number;
-  minStock?: number;
-  isActive?: boolean;
-}
-
-export interface UpdateMaterialDTO extends Partial<CreateMaterialDTO> {}
-
-// ============================================
 // QUOTATION REQUEST (RFQ)
 // ============================================
 
@@ -661,9 +630,6 @@ export interface Contract {
   // Checklist de documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
-  // Fechas póliza
-  polizaStartDate?: string | null;
-  polizaEndDate?: string | null;
   // Campo calculado para semáforo
   daysUntilExpiration?: number | null;
   createdAt: string;
@@ -704,9 +670,53 @@ export interface CreateContractDTO {
   // Checklist de documentos
   docContratoFirmado?: 'SI' | 'NO';
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
-  // Fechas póliza
-  polizaStartDate?: string;
-  polizaEndDate?: string;
   // Items
   items?: CreateContractItemDTO[];
+}
+
+// ============================================
+// PÓLIZAS
+// ============================================
+
+export type PolicyType = 
+  | 'CUMPLIMIENTO' 
+  | 'CALIDAD_SUMINISTROS' 
+  | 'ESTABILIDAD_OBRA' 
+  | 'SALARIOS_PRESTACIONES' 
+  | 'RESPONSABILIDAD_CIVIL' 
+  | 'BUEN_MANEJO_ANTICIPO';
+
+export const POLICY_TYPE_LABELS: Record<PolicyType, string> = {
+  CUMPLIMIENTO: 'Cumplimiento',
+  CALIDAD_SUMINISTROS: 'Calidad de Suministros',
+  ESTABILIDAD_OBRA: 'Estabilidad de Obra/Calidad de Servicio',
+  SALARIOS_PRESTACIONES: 'Salarios y Prestaciones',
+  RESPONSABILIDAD_CIVIL: 'Responsabilidad Civil',
+  BUEN_MANEJO_ANTICIPO: 'Buen Manejo del Anticipo',
+};
+
+export interface Policy {
+  id: string;
+  contractId: string;
+  type: PolicyType;
+  startDate?: string | null;
+  endDate?: string | null;
+  insuredValue: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePolicyDTO {
+  contractId: string;
+  type: PolicyType;
+  startDate?: string;
+  endDate?: string;
+  insuredValue?: number;
+}
+
+export interface UpdatePolicyDTO {
+  type?: PolicyType;
+  startDate?: string;
+  endDate?: string;
+  insuredValue?: number;
 }

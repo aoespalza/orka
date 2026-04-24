@@ -29,14 +29,4 @@ Thumbs.db
 *.swo
 
 # Prisma
-procuraBackend/prisma/migrations/  
-*.zip
-*.env.production
-build.zip
-orka_reducida_deploy.zip
-orka_vps.zip
-backend_full.zip
-backend_update.zip
-dashboard.zip
-frontend_b64.txt
-orka_frontend.zip
+procuraBackend/prisma/migrations/

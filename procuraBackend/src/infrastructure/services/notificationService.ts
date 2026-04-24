@@ -31,6 +31,7 @@ export interface NotificationResult {
   success: boolean;
   contractsFound: number;
   workOrdersFound: number;
+  policiesFound: number;
   emailsSent: number;
   errors: string[];
 }
@@ -282,6 +283,7 @@ class NotificationService {
       success: false,
       contractsFound: 0,
       workOrdersFound: 0,
+      policiesFound: 0,
       emailsSent: 0,
       errors: []
     };
@@ -306,10 +308,12 @@ class NotificationService {
       // Consultar items próximos a vencer
       const contracts = await this.getExpiringContracts(days);
       const workOrders = await this.getExpiringWorkOrders(days);
+      // Solo pólizas que tienen ambas fechas (inicio y fin)
       const policies = await this.getExpiringPolicies(30); // 30 días por defecto para pólizas
 
       result.contractsFound = contracts.length;
       result.workOrdersFound = workOrders.length;
+      result.policiesFound = policies.length;
 
       // Si no hay nada que notificar, salir temprano
       if (contracts.length === 0 && workOrders.length === 0 && policies.length === 0) {
@@ -360,7 +364,7 @@ class NotificationService {
     return { contracts, workOrders };
   }
 
-  // Consultar pólizas próximas a vencer o vencidas
+  // Consultar pólizas próximas a vencer o vencidas (solo las que tienen ambas fechas)
   async getExpiringPolicies(days: number = 30): Promise<PolicyExpiryItem[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -368,30 +372,39 @@ class NotificationService {
     const futureDate = new Date(today);
     futureDate.setDate(futureDate.getDate() + days);
 
-    // Buscar contratos que requieren póliza y tienen fecha de póliza
-    const contracts = await prisma.contract.findMany({
+    // Buscar pólizas que tienen AMBAS fechas (inicio y fin) y vencen en el período
+    const policies = await prisma.policy.findMany({
       where: {
-        docRequierePoliza: 'SI',
-        polizaEndDate: {
-          gte: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000), // Desde 30 días atrás
-          lte: futureDate
+        AND: [
+          { startDate: { not: null } },  // Tiene fecha inicio
+          { endDate: { not: null } },    // Tiene fecha fin
+          {
+            endDate: {
+              gte: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000), // Desde 30 días atrás
+              lte: futureDate
+            }
+          }
+        ]
+      },
+      include: { 
+        contract: {
+          include: { supplier: true }
         }
       },
-      include: { supplier: true },
-      orderBy: { polizaEndDate: 'asc' }
+      orderBy: { endDate: 'asc' }
     });
 
-    return contracts
-      .filter(c => c.polizaEndDate)
-      .map(c => {
-        const daysUntil = Math.ceil((c.polizaEndDate!.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return policies
+      .filter(p => p.endDate && p.startDate)
+      .map(p => {
+        const daysUntil = Math.ceil((p.endDate!.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         return {
-          id: c.id,
-          code: c.code,
-          contractCode: c.code,
-          supplierName: c.supplier?.name || 'N/A',
-          startDate: c.polizaStartDate!,
-          endDate: c.polizaEndDate!,
+          id: p.id,
+          code: p.contract.code,
+          contractCode: p.contract.code,
+          supplierName: p.contract.supplier?.name || 'N/A',
+          startDate: p.startDate!,
+          endDate: p.endDate!,
           daysUntilExpiration: daysUntil,
           isExpired: daysUntil < 0
         };

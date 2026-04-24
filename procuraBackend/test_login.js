@@ -1,14 +1,25 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
-const prisma = new PrismaClient();
+
+const prisma = new PrismaClient({ log: ['query'] });
 
 async function test() {
-  const user = await prisma.user.findUnique({ where: { username: 'admin' } });
-  console.log('User found:', user ? 'YES' : 'NO');
+  console.log('=== Testing Prisma + bcrypt ===');
+  
+  const user = await prisma.user.findUnique({
+    where: { username: 'admin' }
+  });
+  
+  console.log('User from DB:', user ? user.username : 'NOT FOUND');
+  console.log('Password in DB:', user ? user.password : 'N/A');
+  console.log('Password length:', user ? user.password.length : 0);
+  
   if (user) {
-    const isValid = await bcrypt.compare('admin123', user.password);
-    console.log('Password valid:', isValid);
-    console.log('isActive:', user.isActive);
+    const match = await bcrypt.compare('admin123', user.password);
+    console.log('Bcrypt compare result:', match);
   }
+  
+  await prisma.$disconnect();
 }
-test().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+
+test().catch(console.error);

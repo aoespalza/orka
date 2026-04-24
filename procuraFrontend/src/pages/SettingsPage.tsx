@@ -579,7 +579,7 @@ export default function SettingsPage() {
                 <thead>
                   <tr>
                     <th>Código</th>
-                    <th>Proveedor</th>
+                    <th>Contratista</th>
                     <th>Fecha Fin</th>
                     <th>Días</th>
                     <th>Valor</th>
@@ -610,7 +610,7 @@ export default function SettingsPage() {
                   <tr>
                     <th>Código</th>
                     <th>Título</th>
-                    <th>Proveedor</th>
+                    <th>Contratista</th>
                     <th>Fecha Fin</th>
                     <th>Días</th>
                     <th>Valor</th>
@@ -649,7 +649,7 @@ export default function SettingsPage() {
                 <thead>
                   <tr>
                     <th>Contrato</th>
-                    <th>Proveedor</th>
+                    <th>Contratista</th>
                     <th>Inicio</th>
                     <th>Fin</th>
                     <th>Días</th>
@@ -808,7 +808,7 @@ export default function SettingsPage() {
             checked={settings['VALIDATION_SUPPLIER_CODE_AUTO']?.value === 'true'}
             onChange={(e) => setSettings(prev => ({ ...prev, VALIDATION_SUPPLIER_CODE_AUTO: { ...prev['VALIDATION_SUPPLIER_CODE_AUTO'], value: e.target.checked ? 'true' : 'false' } }))}
           />
-          Código Automático para Proveedores
+          Código Automático para Contratistas
         </label>
         <span className="help-text">{settings['VALIDATION_SUPPLIER_CODE_AUTO']?.description}</span>
       </div>

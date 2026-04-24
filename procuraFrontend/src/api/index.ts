@@ -14,9 +14,6 @@ import type {
   Supplier, 
   CreateSupplierDTO, 
   UpdateSupplierDTO,
-  Material,
-  CreateMaterialDTO,
-  UpdateMaterialDTO,
   DashboardStats,
   WorkOrder,
   CreateWorkOrderDTO,
@@ -203,34 +200,6 @@ class ApiClient {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
-  }
-
-  // ============================================
-  // MATERIALS
-  // ============================================
-
-  async getMaterials(params?: { page?: number; limit?: number; search?: string; category?: string }): Promise<PaginatedResponse<Material>> {
-    const response = await this.client.get<PaginatedResponse<Material>>('/materials', { params });
-    return response.data;
-  }
-
-  async getMaterial(id: string): Promise<Material> {
-    const response = await this.client.get<Material>(`/materials/${id}`);
-    return response.data;
-  }
-
-  async createMaterial(data: CreateMaterialDTO): Promise<Material> {
-    const response = await this.client.post<Material>('/materials', data);
-    return response.data;
-  }
-
-  async updateMaterial(id: string, data: UpdateMaterialDTO): Promise<Material> {
-    const response = await this.client.put<Material>(`/materials/${id}`, data);
-    return response.data;
-  }
-
-  async deleteMaterial(id: string): Promise<void> {
-    await this.client.delete(`/materials/${id}`);
   }
 
   // ============================================
@@ -439,6 +408,38 @@ class ApiClient {
   async getNotificationStatus(): Promise<any> {
     const response = await this.client.get<any>('/notifications/status');
     return response.data;
+  }
+
+  // ====================
+  // PÓLIZAS
+  // ====================
+  async getPolicies(): Promise<any[]> {
+    const response = await this.client.get<any[]>('/policies');
+    return response.data;
+  }
+
+  async getPoliciesByContract(contractId: string): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/policies/contract/${contractId}`);
+    return response.data;
+  }
+
+  async getPolicyById(id: string): Promise<any> {
+    const response = await this.client.get<any>(`/policies/${id}`);
+    return response.data;
+  }
+
+  async createPolicy(data: any): Promise<any> {
+    const response = await this.client.post<any>('/policies', data);
+    return response.data;
+  }
+
+  async updatePolicy(id: string, data: any): Promise<any> {
+    const response = await this.client.put<any>(`/policies/${id}`, data);
+    return response.data;
+  }
+
+  async deletePolicy(id: string): Promise<void> {
+    await this.client.delete(`/policies/${id}`);
   }
 
 }
