@@ -38,18 +38,18 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
     
     // Agregar contratos por proyecto
     contractsByProject.forEach(item => {
-      if (!projectMap.has(item.projectName)) {
-        projectMap.set(item.projectName, { name: item.projectName, contracts: 0, workOrders: 0 });
+      if (!projectMap.has(item.projectCode)) {
+        projectMap.set(item.projectCode, { name: item.projectCode, contracts: 0, workOrders: 0 });
       }
-      projectMap.get(item.projectName).contracts = item.contractCount;
+      projectMap.get(item.projectCode).contracts = item.contractCount;
     });
     
     // Agregar órdenes de trabajo por proyecto
     workOrdersByProject.forEach(item => {
-      if (!projectMap.has(item.projectName)) {
-        projectMap.set(item.projectName, { name: item.projectName, contracts: 0, workOrders: 0 });
+      if (!projectMap.has(item.projectCode)) {
+        projectMap.set(item.projectCode, { name: item.projectCode, contracts: 0, workOrders: 0 });
       }
-      projectMap.get(item.projectName).workOrders = item.workOrderCount;
+      projectMap.get(item.projectCode).workOrders = item.workOrderCount;
     });
     
     return Array.from(projectMap.values());
