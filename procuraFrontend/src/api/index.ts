@@ -442,6 +442,33 @@ class ApiClient {
     await this.client.delete(`/policies/${id}`);
   }
 
+  // ====================
+  // OTRO SÍ
+  // ====================
+  async getOtroSisByContract(contractId: string): Promise<any[]> {
+    const response = await this.client.get<any[]>(`/otroSi/contract/${contractId}`);
+    return response.data;
+  }
+
+  async getOtroSiById(id: string): Promise<any> {
+    const response = await this.client.get<any>(`/otroSi/${id}`);
+    return response.data;
+  }
+
+  async createOtroSi(data: any): Promise<any> {
+    const response = await this.client.post<any>('/otroSi', data);
+    return response.data;
+  }
+
+  async updateOtroSi(id: string, data: any): Promise<any> {
+    const response = await this.client.put<any>(`/otroSi/${id}`, data);
+    return response.data;
+  }
+
+  async deleteOtroSi(id: string): Promise<void> {
+    await this.client.delete(`/otroSi/${id}`);
+  }
+
 }
 
 export const api = new ApiClient();

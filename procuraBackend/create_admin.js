@@ -4,20 +4,21 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  const password = await bcrypt.hash('admin123', 10);
-  try {
-    await prisma.user.create({
-      data: {
-        username: 'admin',
-        password: password,
-        name: 'Administrador',
-        role: 'ADMIN'
-      }
-    });
-    console.log('Admin created');
-  } catch (e) {
-    console.log('User exists or error:', e.message);
-  }
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+  
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@orka.com' },
+    update: {},
+    create: {
+      email: 'admin@orka.com',
+      name: 'Administrador',
+      password: hashedPassword,
+      status: 'ACTIVE'
+    }
+  });
+  console.log('Admin created/updated:', admin.email);
 }
 
-main().then(() => process.exit(0));
+main()
+  .catch(e => console.error(e))
+  .finally(() => prisma.$disconnect());

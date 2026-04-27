@@ -1,6 +1,16 @@
 export type ContractStatus = 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'COMPLETED' | 'CANCELLED';
 export type FicStatus = 'SI' | 'NO' | 'FIRMA';
 
+export interface ContractOtroSi {
+  id: string;
+  contractId: string;
+  numero: number;
+  endDate?: string | null;
+  value: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ContractItem {
   id: string;
   contractId: string;
@@ -48,6 +58,7 @@ export interface Contract {
   status: ContractStatus;
   observations?: string | null;
   items?: ContractItem[];
+  otroSis?: ContractOtroSi[]; // Múltiples Otro Sí
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +99,8 @@ export interface CreateContractDTO {
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
   // Items
   items?: CreateContractItemDTO[];
+  // Múltiples Otro Sí
+  otroSis?: { numero: number; endDate?: string; value?: number }[];
 }
 
 export interface UpdateContractDTO {
@@ -111,6 +124,8 @@ export interface UpdateContractDTO {
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
   // Items
   items?: CreateContractItemDTO[];
+  // Múltiples Otro Sí
+  otroSis?: { numero: number; endDate?: string; value?: number }[];
 }
 
 export interface ContractFilters {

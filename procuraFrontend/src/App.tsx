@@ -210,6 +210,14 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/contracts"
+        element={
+          <ProtectedRoute>
+            <AppNavigator />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

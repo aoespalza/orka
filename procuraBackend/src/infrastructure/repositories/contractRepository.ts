@@ -72,7 +72,7 @@ export class ContractRepository {
   async findById(id: string): Promise<Contract | null> {
     return this.prisma.contract.findUnique({
       where: { id },
-      include: { workOrder: true, supplier: true, project: true, items: true }
+      include: { workOrder: true, supplier: true, project: true, items: true, otroSis: true }
     });
   }
 
@@ -195,9 +195,17 @@ export class ContractRepository {
               aiuTotal: aiuTotal
             };
           })
-        } : undefined
+        } : undefined,
+        // Guardar múltiplos Otro Sí
+        otroSis: data.otroSis && data.otroSis.length > 0 ? {
+          create: data.otroSis.map((os: any) => ({
+            numero: os.numero,
+            endDate: os.endDate ? new Date(os.endDate) : null,
+            value: os.value || 0
+          }))
+        } : undefined,
       },
-      include: { workOrder: true, supplier: true, project: true, items: true }
+      include: { workOrder: true, supplier: true, project: true, items: true, otroSis: true }
     });
   }
 
@@ -206,6 +214,10 @@ export class ContractRepository {
     let subtotal = 0;
     let iva = 0;
     let finalValue = 0;
+    
+    // Obtener el valor actual de otroSiValue antes de modificar
+    const current = await this.findById(id);
+    const currentOtroSiValue = current?.otroSiValue || 0;
     
     if (data.items) {
       data.items.forEach((item: any) => {
@@ -225,7 +237,8 @@ export class ContractRepository {
           iva += itemSubtotal * 0.19;
         }
       });
-      finalValue = subtotal + iva;
+      // El finalValue con items incluye: subtotal + iva + otroSiValue
+      finalValue = subtotal + iva + currentOtroSiValue;
     }
 
     // Si hay items, eliminar los existentes y crear nuevos
@@ -233,17 +246,64 @@ export class ContractRepository {
       await this.prisma.contractItem.deleteMany({ where: { contractId: id } });
     }
 
-    // Calcular valor final si no hay items
+    // Calcular valor final si no hay items (se recalcula después de manejar otroSis)
+    let calculatedFinalValue = 0;
     if (!data.items) {
       const current = await this.findById(id);
       const value = data.value ?? current?.value ?? 0;
+      const ivaValue = current?.iva ?? 0;
       const otroSiValue = data.otroSiValue ?? current?.otroSiValue ?? 0;
-      finalValue = value + otroSiValue;
+      calculatedFinalValue = value + ivaValue + otroSiValue;
     }
 
-    // Si hay otroSiEndDate, actualizar endDate del contrato
+    // Manejar múltiples Otro Sí: eliminar existentes y crear nuevos
+    if (data.otroSis) {
+      // Eliminar todos los otroSis existentes
+      await this.prisma.contractOtroSi.deleteMany({ where: { contractId: id } });
+      
+      // Si hay nuevos otroSis, crearlos
+      if (data.otroSis.length > 0) {
+        // Calcular nuevo valor total y fecha de fin
+        const otroSisTotal = data.otroSis.reduce((sum, os) => sum + (os.value || 0), 0);
+        const latestEndDate = data.otroSis
+          .filter(os => os.endDate)
+          .sort((a, b) => new Date(b.endDate!).getTime() - new Date(a.endDate!).getTime())[0];
+        
+        // Actualizar valor del contrato
+        data.otroSiValue = otroSisTotal;
+        
+        // Calcular finalValue con el nuevo total de otroSis
+        if (!data.items) {
+          const current = await this.findById(id);
+          const value = data.value ?? current?.value ?? 0;
+          const ivaValue = current?.iva ?? 0;
+          calculatedFinalValue = value + ivaValue + otroSisTotal;
+        } else {
+          // Si hay items, recalcular finalValue incluyendo el nuevo total de otroSis
+          finalValue = subtotal + iva + otroSisTotal;
+        }
+        
+        // Actualizar fecha fin del contrato si hay una más reciente
+        if (latestEndDate) {
+          const currentEndDate = data.endDate ? new Date(data.endDate) : (await this.findById(id))?.endDate;
+          const newEndDate = new Date(latestEndDate.endDate!);
+          if (!currentEndDate || newEndDate > new Date(currentEndDate)) {
+            data.endDate = latestEndDate.endDate;
+          }
+        }
+      } else {
+        // No hay otroSis, actualizar a 0
+        data.otroSiValue = 0;
+        // Si hay items, recalcular sin otroSis
+        if (data.items) {
+          finalValue = subtotal + iva;
+        }
+      }
+    }
+
+    // Si hay otroSiEndDate (y no es empty string), actualizar endDate del contrato
     let newEndDate = data.endDate;
-    if (data.otroSiEndDate) {
+    if (data.otroSiEndDate && data.otroSiEndDate.trim() !== '') {
       newEndDate = data.otroSiEndDate;
     }
 
@@ -262,11 +322,11 @@ export class ContractRepository {
         ...(data.actaStartDate !== undefined && { actaStartDate: data.actaStartDate ? new Date(data.actaStartDate) : null }),
         ...(data.actaEndDate !== undefined && { actaEndDate: data.actaEndDate ? new Date(data.actaEndDate) : null }),
         ...(data.otroSiNumber !== undefined && { otroSiNumber: data.otroSiNumber }),
-        ...(data.otroSiEndDate !== undefined && { otroSiEndDate: data.otroSiEndDate ? new Date(data.otroSiEndDate) : null }),
+        ...(data.otroSiEndDate !== undefined && data.otroSiEndDate.trim() !== '' && { otroSiEndDate: data.otroSiEndDate ? new Date(data.otroSiEndDate) : null }),
         ...(data.otroSiValue !== undefined && { otroSiValue: data.otroSiValue }),
         ...(subtotal > 0 && { subtotal }),
         ...(iva > 0 && { iva }),
-        ...(finalValue > 0 && { finalValue }),
+        ...((finalValue > 0 || calculatedFinalValue > 0) && { finalValue: finalValue || calculatedFinalValue }),
         ...(data.advancePayment !== undefined && { advancePayment: data.advancePayment }),
         ...(data.status && { status: data.status }),
         ...(data.observations !== undefined && { observations: data.observations }),
@@ -299,9 +359,19 @@ export class ContractRepository {
               };
             })
           }
+        }),
+        // Guardar múltiplos Otro Sí
+        ...(data.otroSis && data.otroSis.length > 0 && {
+          otroSis: {
+            create: data.otroSis.map((os: any) => ({
+              numero: os.numero,
+              endDate: os.endDate ? new Date(os.endDate) : null,
+              value: os.value || 0
+            }))
+          }
         })
       },
-      include: { workOrder: true, supplier: true, items: true }
+      include: { workOrder: true, supplier: true, items: true, otroSis: true }
     });
   }
 

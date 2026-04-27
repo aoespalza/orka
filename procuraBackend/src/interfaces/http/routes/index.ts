@@ -11,6 +11,7 @@ import uploadRoutes from './uploadRoutes';
 import { permissionController } from './permissionRoutes';
 import { profileController } from './profileRoutes';
 import notificationRoutes, { sendExpiryReminders, getPreview, getPoliciesPreview, getStatus, notifyPolicyUpdate } from './notificationRoutes';
+import otroSiRoutes, { otroSiController } from './otroSiRoutes';
 import { authenticate, authorize } from '../../../shared/middleware/auth';
 
 const router = Router();
@@ -106,6 +107,9 @@ router.get('/policies/:id', authenticate, policyController.getById);
 router.post('/policies', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER', 'PURCHASE_AGENT'), policyController.create);
 router.put('/policies/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER', 'PURCHASE_AGENT'), policyController.update);
 router.delete('/policies/:id', authenticate, authorize('ADMIN', 'PURCHASE_MANAGER'), policyController.delete);
+
+// Otro Sí
+router.use('/otroSi', otroSiRoutes);
 
 // Settings - usar el router de settingsRoutes
 router.use('/settings', settingsRoutes);

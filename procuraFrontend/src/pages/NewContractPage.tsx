@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import type { CreateContractDTO, CreateContractItemDTO, Supplier, PolicyType, Policy } from '../types';
 import './ContractsPage.css';
@@ -35,6 +35,9 @@ const POLIZA_OPTIONS = [
 
 export default function NewContractPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const contractId = searchParams.get('id');
+  const isEditing = !!contractId;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -82,11 +85,63 @@ export default function NewContractPage() {
     aiuUtilidad: 0
   });
 
+  // Estado para múltiples Otro Sí
+  const [otroSis, setOtroSis] = useState<any[]>([]);
+  const [newOtroSi, setNewOtroSi] = useState<{ numero: number; endDate: string; value: number }>({
+    numero: 1,
+    endDate: '',
+    value: 0
+  });
+
   useEffect(() => {
     loadSuppliers();
     loadProjects();
     loadCompanySettings();
+    if (contractId) {
+      loadContract();
+    }
   }, []);
+
+  const loadContract = async () => {
+    if (!contractId) return;
+    try {
+      // Usar getContract directamente para obtener el contrato con todos los datos incluyendo otroSis
+      const contract = await api.getContract(contractId);
+      if (contract) {
+        // Cargar items con el total calculado
+        const itemsWithTotal = (contract.items || []).map((item: any) => ({
+          ...item,
+          total: (item.quantity * item.unitPrice) * (1 + ((item.aiuAdministration || 0) + (item.aiuImprevistos || 0) + (item.aiuUtilidad || 0)) / 100)
+        }));
+        setFormData({
+          workOrderId: contract.workOrderId || '',
+          projectId: contract.projectId || '',
+          supplierId: contract.supplierId,
+          startDate: contract.startDate ? contract.startDate.split('T')[0] : '',
+          endDate: contract.endDate ? contract.endDate.split('T')[0] : '',
+          value: contract.value,
+          fic: contract.fic,
+          actaStartDate: contract.actaStartDate ? contract.actaStartDate.split('T')[0] : '',
+          actaEndDate: contract.actaEndDate ? contract.actaEndDate.split('T')[0] : '',
+          otroSiNumber: contract.otroSiNumber || undefined,
+          otroSiEndDate: contract.otroSiEndDate ? contract.otroSiEndDate.split('T')[0] : '',
+          otroSiValue: contract.otroSiValue,
+          advancePayment: contract.advancePayment,
+          status: contract.status,
+          observations: contract.observations || '',
+          docContratoFirmado: contract.docContratoFirmado || 'NO',
+          docRequierePoliza: contract.docRequierePoliza || 'N/A',
+          polizaStartDate: contract.polizaStartDate ? contract.polizaStartDate.split('T')[0] : '',
+          polizaEndDate: contract.polizaEndDate ? contract.polizaEndDate.split('T')[0] : '',
+        });
+        setContractItems(itemsWithTotal);
+        setPolicies(contract.policies || []);
+        setOtroSis(contract.otroSis || []);
+      }
+    } catch (error) {
+      console.error('Failed to load contract:', error);
+    }
+  };
 
   const loadCompanySettings = async () => {
     try {
@@ -140,7 +195,14 @@ export default function NewContractPage() {
         iva += itemSubtotal * 0.19;
       }
     });
-    return { subtotal, iva, total: subtotal + iva };
+    // Incluir valor de Otro Sí en el total
+    const otroSiTotal = calculateOtroSisTotal();
+    return { 
+      subtotal, 
+      iva, 
+      otroSi: otroSiTotal,
+      total: subtotal + iva + otroSiTotal 
+    };
   };
 
   const addItem = () => {
@@ -148,7 +210,8 @@ export default function NewContractPage() {
       alert('Por favor complete los campos obligatorios del ítem');
       return;
     }
-    setContractItems([...contractItems, { ...newItem }]);
+    const itemWithTotal = { ...newItem, total: calculateItemTotal(newItem) };
+    setContractItems([...contractItems, itemWithTotal]);
     setNewItem({
       description: '',
       quantity: 1,
@@ -166,8 +229,36 @@ export default function NewContractPage() {
     setContractItems(contractItems.filter((_, i) => i !== index));
   };
 
+  // Funciones para Otro Sí
+  const addOtroSi = () => {
+    if (!newOtroSi.numero || newOtroSi.numero <= 0) {
+      alert('Por favor ingrese el número del Otro Sí');
+      return;
+    }
+    // Verificar que no exista otro con el mismo número
+    if (otroSis.some(os => os.numero === newOtroSi.numero)) {
+      alert(`Ya existe Otro Sí #${newOtroSi.numero}`);
+      return;
+    }
+    setOtroSis([...otroSis, { ...newOtroSi }]);
+    setNewOtroSi({
+      numero: (newOtroSi.numero || 0) + 1,
+      endDate: '',
+      value: 0
+    });
+  };
+
+  const removeOtroSi = (index: number) => {
+    setOtroSis(otroSis.filter((_, i) => i !== index));
+  };
+
   const calculateFinalValue = () => {
-    return (formData.value || 0) + (formData.otroSiValue || 0);
+    const otroSisTotal = otroSis.reduce((sum, os) => sum + (os.value || 0), 0);
+    return (formData.value || 0) + otroSisTotal;
+  };
+
+  const calculateOtroSisTotal = () => {
+    return otroSis.reduce((sum, os) => sum + (os.value || 0), 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -192,10 +283,16 @@ export default function NewContractPage() {
       setIsLoading(true);
       const contractData = {
         ...formData,
-        items: contractItems
+        items: contractItems,
+        otroSis: otroSis
       };
       
-      const result = await api.createContract(contractData);
+      let result;
+      if (isEditing && contractId) {
+        result = await api.updateContract(contractId, contractData);
+      } else {
+        result = await api.createContract(contractData);
+      }
       
       // Save policies if contract was created and has policy dates
       if (result.id && hasPoliciesWithDates) {
@@ -226,7 +323,8 @@ export default function NewContractPage() {
         }
       }
       
-      navigate('/contracts');
+      localStorage.setItem('PROCURA_PAGE', 'contracts');
+      window.location.href = '/';
     } catch (error) {
       console.error('Failed to save contract:', error);
       alert('Error al guardar el contrato');
@@ -428,41 +526,39 @@ export default function NewContractPage() {
 
         </div>
 
-        {/* Otro Sí */}
+        {/* Otro Sí - Múltiples */}
         <div className="form-section">
           <h3>📝 Otro Sí</h3>
           <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
-            (Modifica el valor y/o fecha de terminación del contrato)
+            (Agregar prorrogas o adiciones al contrato)
           </p>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Número de Otro Sí</label>
-              <input 
-                type="number" 
-                placeholder="Ej: 1" 
-                value={formData.otroSiNumber || ''} 
-                onChange={e => setFormData({...formData, otroSiNumber: e.target.value ? Number(e.target.value) : undefined})} 
-              />
-            </div>
-            <div className="form-group">
-              <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Nueva Fecha Fin (prórroga)</label>
-              <input 
-                type="date" 
-                value={formData.otroSiEndDate} 
-                onChange={e => setFormData({...formData, otroSiEndDate: e.target.value})} 
-              />
-            </div>
-            <div className="form-group">
-              <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Valor Adicional</label>
-              <input 
-                type="number" 
-                value={formData.otroSiValue} 
-                onChange={e => setFormData({...formData, otroSiValue: Number(e.target.value)})} 
-              />
-            </div>
-          </div>
-          {(formData.otroSiValue || 0) > 0 && (
+
+          {otroSis.length > 0 && (
+            <table className="data-table" style={{ marginBottom: '12px', fontSize: '13px' }}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nueva Fecha Fin</th>
+                  <th>Valor Adicional</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {otroSis.map((os, index) => (
+                  <tr key={index}>
+                    <td>Otro Sí #{os.numero}</td>
+                    <td>{os.endDate ? new Date(os.endDate).toLocaleDateString('es-CL') : '-'}</td>
+                    <td>${(os.value || 0).toLocaleString('es-CL')}</td>
+                    <td>
+                      <button type="button" onClick={() => removeOtroSi(index)} title="Eliminar">🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {calculateOtroSisTotal() > 0 && (
             <div style={{ 
               marginTop: '8px', 
               padding: '8px', 
@@ -470,7 +566,57 @@ export default function NewContractPage() {
               borderRadius: '4px',
               fontSize: '13px'
             }}>
-              <strong>Valor Final del Contrato:</strong> ${(formData.value || 0).toLocaleString('es-CL')} + ${(formData.otroSiValue || 0).toLocaleString('es-CL')} = <strong>${calculateFinalValue().toLocaleString('es-CL')}</strong>
+              <strong>Valor Otro Sí:</strong> ${calculateOtroSisTotal().toLocaleString('es-CL')}
+            </div>
+          )}
+
+          {/* Agregar nuevo Otro Sí */}
+          <div className="form-row" style={{ marginTop: '12px' }}>
+            <div className="form-group">
+              <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Número</label>
+              <input 
+                type="number" 
+                placeholder="Ej: 1" 
+                value={newOtroSi.numero} 
+                onChange={e => setNewOtroSi({...new OtroSi, numero: Number(e.target.value)})} 
+              />
+            </div>
+            <div className="form-group">
+              <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Nueva Fecha Fin (prórroga)</label>
+              <input 
+                type="date" 
+                value={newOtroSi.endDate} 
+                onChange={e => setNewOtroSi({...newOtroSi, endDate: e.target.value})} 
+              />
+            </div>
+            <div className="form-group">
+              <label style={{ fontWeight: 'normal', fontSize: '13px' }}>Valor Adicional</label>
+              <input 
+                type="number" 
+                value={newOtroSi.value} 
+                onChange={e => setNewOtroSi({...newOtroSi, value: Number(e.target.value)})} 
+              />
+            </div>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button 
+                type="button" 
+                onClick={addOtroSi}
+                style={{ backgroundColor: '#22c55e', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                ➕ Agregar
+              </button>
+            </div>
+          </div>
+
+          {(formData.value || 0) > 0 && calculateOtroSisTotal() > 0 && (
+            <div style={{ 
+              marginTop: '8px', 
+              padding: '8px', 
+              backgroundColor: '#fef3c7', 
+              borderRadius: '4px',
+              fontSize: '13px'
+            }}>
+              <strong>Valor Final del Contrato:</strong> ${(formData.value || 0).toLocaleString('es-CL')} + ${calculateOtroSisTotal().toLocaleString('es-CL')} = <strong>${calculateFinalValue().toLocaleString('es-CL')}</strong>
             </div>
           )}
         </div>
@@ -508,7 +654,7 @@ export default function NewContractPage() {
                         <span style={{ color: '#22c55e', fontSize: '11px' }}>✓</span>
                       ) : '-'}
                     </td>
-                    <td>{item.applyIva ? '✓' : '-'}</td>
+                    <td>{item.iva ? '✓' : '-'}</td>
                     <td>${item.total.toLocaleString('es-CL')}</td>
                     <td>
                       <button type="button" onClick={() => removeItem(index)} title="Eliminar">🗑️</button>
@@ -636,23 +782,44 @@ export default function NewContractPage() {
           </button>
         </div>
 
-        {/* Totales */}
-        {contractItems.length > 0 && (
+        {/* Totales - mostrar cuando hay items O cuando hay otroSis */}
+        {(contractItems.length > 0 || calculateOtroSisTotal() > 0) && (
           <div className="form-section">
             <h3>💰 Totales del Contrato</h3>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <div style={{ width: '300px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span>Subtotal:</span>
-                  <span>${calculateContractTotals().subtotal.toLocaleString('es-CL')}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span>IVA (19%):</span>
-                  <span>${calculateContractTotals().iva.toLocaleString('es-CL')}</span>
-                </div>
+                {contractItems.length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <span>Subtotal:</span>
+                      <span>${calculateContractTotals().subtotal.toLocaleString('es-CL')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <span>IVA (19%):</span>
+                      <span>${calculateContractTotals().iva.toLocaleString('es-CL')}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <span>Valor Contrato:</span>
+                      <span>${(formData.value || 0).toLocaleString('es-CL')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <span>IVA (19%):</span>
+                      <span>${((formData.value || 0) * 0.19).toLocaleString('es-CL')}</span>
+                    </div>
+                  </>
+                )}
+                {calculateContractTotals().otroSi > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb', color: '#1976d2' }}>
+                    <span>Otro Sí (Adiciones):</span>
+                    <span>+${calculateContractTotals().otroSi.toLocaleString('es-CL')}</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontWeight: 'bold', fontSize: '18px' }}>
                   <span>Total:</span>
-                  <span>${calculateContractTotals().total.toLocaleString('es-CL')}</span>
+                  <span style={{ color: '#0d47a1' }}>${calculateContractTotals().total.toLocaleString('es-CL')}</span>
                 </div>
               </div>
             </div>
@@ -672,11 +839,11 @@ export default function NewContractPage() {
 
         {/* Acciones */}
         <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={() => navigate('/contracts')}>
+          <button type="button" className="btn-secondary" onClick={() => navigate('/')}>
             Cancelar
           </button>
           <button type="submit" className="btn-primary" disabled={isLoading}>
-            {isLoading ? 'Guardando...' : '💾 Guardar Contrato'}
+            {isLoading ? 'Guardando...' : isEditing ? '💾 Actualizar Contrato' : '💾 Guardar Contrato'}
           </button>
         </div>
       </form>

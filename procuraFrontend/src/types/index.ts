@@ -644,6 +644,7 @@ export interface CreateContractItemDTO {
   unitPrice: number;
   iva?: boolean;
   observations?: string;
+  total?: number;
   // AIU
   applyAiu?: boolean;
   aiuAdministration?: number;
@@ -661,9 +662,12 @@ export interface CreateContractDTO {
   fic?: FicStatus;
   actaStartDate?: string;
   actaEndDate?: string;
+  // Legacy OtroSí (para compatibilidad)
   otroSiNumber?: number;
   otroSiEndDate?: string;
   otroSiValue?: number;
+  // Nuevo: múltiples OtroSí
+  otroSis?: CreateContractOtroSiDTO[];
   advancePayment?: number;
   status?: ContractStatus;
   observations?: string;
@@ -672,6 +676,24 @@ export interface CreateContractDTO {
   docRequierePoliza?: 'SI' | 'NO' | 'N/A';
   // Items
   items?: CreateContractItemDTO[];
+}
+
+// Otro Sí - Múltiples otro sí por contrato
+export interface ContractOtroSi {
+  id: string;
+  contractId: string;
+  numero: number;
+  endDate?: string | null;
+  value: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateContractOtroSiDTO {
+  contractId?: string;
+  numero: number;
+  endDate?: string;
+  value?: number;
 }
 
 // ============================================

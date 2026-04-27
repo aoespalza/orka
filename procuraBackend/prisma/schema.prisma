@@ -367,6 +367,7 @@ model Contract {
   // Items del contrato
   items           ContractItem[]
   policies        Policy[]
+  otroSis        ContractOtroSi[]
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -424,6 +425,22 @@ model Policy {
   updatedAt       DateTime   @updatedAt
   
   @@unique([contractId, type]) // Una póliza por tipo por contrato
+}
+
+// Otro Sí - Múltiples otro sí por contrato
+model ContractOtroSi {
+  id            String   @id @default(uuid())
+  contractId    String
+  contract      Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  numero        Int       // Número del otro sí (1, 2, 3, ...)
+  endDate       DateTime? // Nueva fecha fin (prórroga)
+  value        Float     @default(0) // Valor adicional
+  
+  createdAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([contractId, numero]) // Un otro sí por número por contrato
 }
 
 // ============================================

@@ -172,55 +172,7 @@ export default function ContractsPage() {
   };
 
   const handleEdit = (contract: Contract) => {
-    setEditingContract(contract);
-    setFormData({
-      workOrderId: contract.workOrderId || '',
-      projectId: contract.projectId || '',
-      supplierId: contract.supplierId,
-      startDate: contract.startDate ? contract.startDate.split('T')[0] : '',
-      endDate: contract.endDate ? contract.endDate.split('T')[0] : '',
-      value: contract.value,
-      fic: contract.fic,
-      actaStartDate: contract.actaStartDate ? contract.actaStartDate.split('T')[0] : '',
-      actaEndDate: contract.actaEndDate ? contract.actaEndDate.split('T')[0] : '',
-      otroSiNumber: contract.otroSiNumber || undefined,
-      otroSiEndDate: contract.otroSiEndDate ? contract.otroSiEndDate.split('T')[0] : '',
-      otroSiValue: contract.otroSiValue,
-      advancePayment: contract.advancePayment,
-      status: contract.status,
-      observations: contract.observations || '',
-      docContratoFirmado: contract.docContratoFirmado || 'NO',
-      docRequierePoliza: contract.docRequierePoliza || 'N/A',
-      polizaStartDate: contract.polizaStartDate ? contract.polizaStartDate.split('T')[0] : '',
-      polizaEndDate: contract.polizaEndDate ? contract.polizaEndDate.split('T')[0] : '',
-      items: contract.items?.map(item => ({
-        materialId: item.materialId,
-        description: item.description,
-        quantity: item.quantity,
-        unit: item.unit,
-        unitPrice: item.unitPrice,
-        iva: item.iva,
-        observations: item.observations,
-        applyAiu: item.applyAiu,
-        aiuAdministration: item.aiuAdministration,
-        aiuImprevistos: item.aiuImprevistos,
-        aiuUtilidad: item.aiuUtilidad
-      })) || []
-    });
-    setContractItems(contract.items?.map(item => ({
-      materialId: item.materialId,
-      description: item.description,
-      quantity: item.quantity,
-      unit: item.unit,
-      unitPrice: item.unitPrice,
-      iva: item.iva,
-      observations: item.observations,
-      applyAiu: item.applyAiu,
-      aiuAdministration: item.aiuAdministration,
-      aiuImprevistos: item.aiuImprevistos,
-      aiuUtilidad: item.aiuUtilidad
-    })) || []);
-    setShowModal(true);
+    navigate(`/new-contract?id=${contract.id}`);
   };
 
   const handleDelete = async (id: string) => {
