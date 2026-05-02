@@ -73,6 +73,7 @@ export default function NewContractPage() {
     { type: 'RESPONSABILIDAD_CIVIL', startDate: '', endDate: '', insuredValue: 0 },
     { type: 'BUEN_MANEJO_ANTICIPO', startDate: '', endDate: '', insuredValue: 0 },
   ]);
+  const [policyEditMode, setPolicyEditMode] = useState<Record<string, boolean>>({});
   const [newItem, setNewItem] = useState<CreateContractItemDTO>({
     description: '',
     quantity: 1,
@@ -135,7 +136,27 @@ export default function NewContractPage() {
           polizaEndDate: contract.polizaEndDate ? contract.polizaEndDate.split('T')[0] : '',
         });
         setContractItems(itemsWithTotal);
-        setPolicies(contract.policies || []);
+        
+        // Load policies separately if editing
+        if (isEditing && contractId) {
+          try {
+            const contractPolicies = await api.getPoliciesByContract(contractId);
+            const normalized = contractPolicies.map((p: any) => ({
+              ...p,
+              startDate: p.startDate ? p.startDate.split('T')[0] : '',
+              endDate: p.endDate ? p.endDate.split('T')[0] : ''
+            }));
+            // Ensure all 6 types are present (merge DB data with defaults)
+            const merged = PolicyTypes.map(type => {
+              const existing = normalized.find((p: any) => p.type === type);
+              return existing || { type, startDate: '', endDate: '', insuredValue: 0 };
+            });
+            setPolicies(merged);
+          } catch (policiesError) {
+            console.error('Failed to load policies:', policiesError);
+          }
+        }
+        
         setOtroSis(contract.otroSis || []);
       }
     } catch (error) {
@@ -266,7 +287,7 @@ export default function NewContractPage() {
     
     const hasOtroSi = formData.otroSiNumber || formData.otroSiEndDate;
     const requiresPoliza = formData.docRequierePoliza === 'SI';
-    const hasPoliciesWithDates = policies.some(p => p.startDate && p.endDate);
+    const hasPoliciesWithDates = policies.some(p => p.startDate);
     let shouldNotifyPolicyUpdate = false;
     
     if (hasOtroSi && requiresPoliza) {
@@ -297,15 +318,37 @@ export default function NewContractPage() {
       // Save policies if contract was created and has policy dates
       if (result.id && hasPoliciesWithDates) {
         try {
+          // Get existing policies only if editing
+          let existingPolicies: any[] = [];
+          if (isEditing) {
+            existingPolicies = await api.getPoliciesByContract(result.id);
+          }
+          
+          // Create a map of existing policies by type
+          const existingMap = new Map();
+          existingPolicies.forEach((p: any) => existingMap.set(p.type, p));
+          
           for (const policy of policies) {
-            if (policy.startDate && policy.endDate) {
-              await api.createPolicy({
-                contractId: result.id,
-                type: policy.type,
-                startDate: policy.startDate,
-                endDate: policy.endDate,
-                insuredValue: policy.insuredValue
-              });
+            if (policy.startDate) {
+              const existing = existingMap.get(policy.type);
+              
+              if (existing && existing.id) {
+                // Update existing policy
+                await api.updatePolicy(existing.id, {
+                  startDate: policy.startDate,
+                  endDate: policy.endDate,
+                  insuredValue: policy.insuredValue
+                });
+              } else {
+                // Create new policy
+                await api.createPolicy({
+                  contractId: result.id,
+                  type: policy.type,
+                  startDate: policy.startDate,
+                  endDate: policy.endDate,
+                  insuredValue: policy.insuredValue
+                });
+              }
             }
           }
         } catch (policyError) {
@@ -487,39 +530,69 @@ export default function NewContractPage() {
               <p style={{fontSize: '13px', color: '#666'}}>Complete las pólizas requeridas con sus fechas de vigencia y valor asegurado</p>
               
               <div className="policies-grid">
-                {PolicyTypes.map(policyType => (
-                  <div key={policyType} className="policy-card">
-                    <div className="policy-card-header">
-                      <span className="policy-type-label">{POLICY_TYPE_LABELS[policyType]}</span>
+                {PolicyTypes.map(policyType => {
+                  const policy = policies.find(p => p.type === policyType);
+                  const hasData = policy?.startDate || policy?.endDate || policy?.insuredValue;
+                  const isEditing = policyEditMode[policyType];
+                  
+                  return (
+                    <div key={policyType} className="policy-card" style={{
+                      border: hasData ? '2px solid #10b981' : '1px solid #d1d5db',
+                      background: hasData ? '#ecfdf5' : 'white'
+                    }}>
+                      <div className="policy-card-header">
+                        <span className="policy-type-label">{POLICY_TYPE_LABELS[policyType]}</span>
+                        {!isEditing && (
+                          <button 
+                            type="button" 
+                            onClick={() => setPolicyEditMode({...policyEditMode, [policyType]: true})}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}
+                            title="Editar"
+                          >✏️</button>
+                        )}
+                      </div>
+                      <div className="policy-card-body">
+                        {isEditing ? (
+                          <>
+                            <div className="form-group">
+                              <label>Fecha Inicio</label>
+                              <input type="date" value={policy?.startDate || ''}
+                                onChange={e => { const v = e.target.value; setPolicies(prev => prev.some(p => p.type === policyType) ? prev.map(p => p.type === policyType ? {...p, startDate: v} : p) : [...prev, { type: policyType, startDate: v, endDate: '', insuredValue: 0 }]); }} />
+                            </div>
+                            <div className="form-group">
+                              <label>Fecha Fin</label>
+                              <input type="date" value={policy?.endDate || ''}
+                                onChange={e => { const v = e.target.value; setPolicies(prev => prev.some(p => p.type === policyType) ? prev.map(p => p.type === policyType ? {...p, endDate: v} : p) : [...prev, { type: policyType, startDate: '', endDate: v, insuredValue: 0 }]); }} />
+                            </div>
+                            <div className="form-group">
+                              <label>Valor Asegurado ($)</label>
+                              <input type="number" value={policy?.insuredValue || 0}
+                                onChange={e => { const v = parseFloat(e.target.value) || 0; setPolicies(prev => prev.some(p => p.type === policyType) ? prev.map(p => p.type === policyType ? {...p, insuredValue: v} : p) : [...prev, { type: policyType, startDate: '', endDate: '', insuredValue: v }]); }} />
+                            </div>
+                            <button type="button" onClick={() => setPolicyEditMode({...policyEditMode, [policyType]: false})}
+                              style={{ marginTop: '8px', padding: '4px 12px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px' }}>
+                              ✓ Listo
+                            </button>
+                          </>
+                        ) : (
+                          <div style={{fontSize: '13px', color: '#374151'}}>
+                            {hasData ? (
+                              <>
+                                <div><strong>Inicio:</strong> {policy?.startDate ? new Date(policy.startDate).toLocaleDateString('es-CL') : '-'}</div>
+                                <div><strong>Fin:</strong> {policy?.endDate ? new Date(policy.endDate).toLocaleDateString('es-CL') : '-'}</div>
+                                <div><strong>Valor:</strong> ${(policy?.insuredValue || 0).toLocaleString('es-CL')}</div>
+                              </>
+                            ) : (
+                              <div style={{color: '#9ca3af', fontStyle: 'italic'}}>
+                                Sin información - Click ✏️ para agregar
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="policy-card-body">
-                      <div className="form-group">
-                        <label>Fecha Inicio</label>
-                        <input
-                          type="date"
-                          value={policies.find(p => p.type === policyType)?.startDate || ''}
-                          onChange={e => setPolicies(policies.map(p => p.type === policyType ? {...p, startDate: e.target.value} : p))}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Fecha Fin</label>
-                        <input
-                          type="date"
-                          value={policies.find(p => p.type === policyType)?.endDate || ''}
-                          onChange={e => setPolicies(policies.map(p => p.type === policyType ? {...p, endDate: e.target.value} : p))}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Valor Asegurado ($)</label>
-                        <input
-                          type="number"
-                          value={policies.find(p => p.type === policyType)?.insuredValue || 0}
-                          onChange={e => setPolicies(policies.map(p => p.type === policyType ? {...p, insuredValue: parseFloat(e.target.value) || 0} : p))}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

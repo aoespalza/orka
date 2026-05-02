@@ -15,6 +15,11 @@ services:
       - "5432:5432"
     networks:
       - orka_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orka_reducida"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: ./procuraBackend
@@ -27,7 +32,8 @@ services:
       NODE_ENV: "production"
       COMPANY_NAME: "Orka Reducida"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3006:3006"
     networks:

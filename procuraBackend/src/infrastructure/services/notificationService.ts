@@ -37,15 +37,18 @@ export interface NotificationResult {
 }
 
 class NotificationService {
-  // Obtener días de vencimiento desde settings (default 7)
+  // Días por defecto si no hay setting configurado (antes 7, ahora 30 para coincidir con frontend)
+  private static readonly DEFAULT_EXPIRY_DAYS = 30;
+
+  // Obtener días de vencimiento desde settings (default 30)
   private async getExpiryDays(): Promise<number> {
     try {
       const setting = await prisma.setting.findFirst({
-        where: { key: 'NOTIFICATION_EXPIRY_DAYS' }
+        where: { key: { in: ['NOTIFICATION_DAYS', 'NOTIFICATION_EXPIRY_DAYS'] } }
       });
-      return setting ? parseInt(setting.value) : 7;
+      return setting ? parseInt(setting.value) : NotificationService.DEFAULT_EXPIRY_DAYS;
     } catch {
-      return 7;
+      return NotificationService.DEFAULT_EXPIRY_DAYS;
     }
   }
 
@@ -309,7 +312,7 @@ class NotificationService {
       const contracts = await this.getExpiringContracts(days);
       const workOrders = await this.getExpiringWorkOrders(days);
       // Solo pólizas que tienen ambas fechas (inicio y fin)
-      const policies = await this.getExpiringPolicies(30); // 30 días por defecto para pólizas
+      const policies = await this.getExpiringPolicies(days);
 
       result.contractsFound = contracts.length;
       result.workOrdersFound = workOrders.length;
@@ -323,7 +326,7 @@ class NotificationService {
       }
 
       // Generar HTML del email (incluyendo pólizas)
-      const policiesHtml = this.generatePoliciesEmailHtml(policies, 30);
+      const policiesHtml = this.generatePoliciesEmailHtml(policies, days);
       const html = this.generateEmailHtml(contracts, workOrders, days) + policiesHtml;
       const companyName = process.env.COMPANY_NAME || 'Orka Sistema';
 
@@ -357,8 +360,8 @@ class NotificationService {
     return result;
   }
 
-  // Obtener preview sin enviar (para testing)
-  async getPreview(days: number = 7): Promise<{ contracts: ExpiryItem[]; workOrders: ExpiryItem[] }> {
+  // Obtener preview sin enviar (para testing) - usa 30 días por defecto
+  async getPreview(days: number = NotificationService.DEFAULT_EXPIRY_DAYS): Promise<{ contracts: ExpiryItem[]; workOrders: ExpiryItem[] }> {
     const contracts = await this.getExpiringContracts(days);
     const workOrders = await this.getExpiringWorkOrders(days);
     return { contracts, workOrders };

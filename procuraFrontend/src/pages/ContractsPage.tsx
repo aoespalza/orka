@@ -135,13 +135,15 @@ export default function ContractsPage() {
         data = data.filter((c: Contract) => c.projectId === projectFilter);
       }
       
-      // Sort by expiration date (nearest first)
+      // Sort by expiration date (nearest first) - use effective end date
       if (sortByExpiration) {
         data.sort((a: Contract, b: Contract) => {
-          if (!a.endDate && !b.endDate) return 0;
-          if (!a.endDate) return 1;
-          if (!b.endDate) return -1;
-          return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+          const aEffective = getEffectiveEndDate(a);
+          const bEffective = getEffectiveEndDate(b);
+          if (!aEffective && !bEffective) return 0;
+          if (!aEffective) return 1;
+          if (!bEffective) return -1;
+          return new Date(aEffective).getTime() - new Date(bEffective).getTime();
         });
       }
       
@@ -354,6 +356,18 @@ export default function ContractsPage() {
     return new Intl.NumberFormat('es-CL').format(value);
   };
 
+  // Función para obtener la fecha efectiva de vencimiento (la más reciente entre endDate y otroSiEndDate)
+  const getEffectiveEndDate = (contract: Contract): string | null => {
+    const endDate = contract.endDate ? new Date(contract.endDate) : null;
+    const otroSiEndDate = contract.otroSiEndDate ? new Date(contract.otroSiEndDate) : null;
+    
+    if (!endDate && !otroSiEndDate) return null;
+    if (!endDate) return contract.otroSiEndDate;
+    if (!otroSiEndDate) return contract.endDate;
+    
+    return endDate.getTime() >= otroSiEndDate.getTime() ? contract.endDate : contract.otroSiEndDate;
+  };
+
   // Función para obtener el color del semáforo según días restantes
   const getTrafficLight = (days: number | null | undefined) => {
     if (days === null || days === undefined) {
@@ -469,7 +483,14 @@ export default function ContractsPage() {
                 <td>{contract.supplier?.name || contract.supplierId}</td>
                 <td>{contract.docContratoFirmado === 'SI' ? '✅' : '❌'} / {contract.docRequierePoliza === 'SI' ? '✅' : contract.docRequierePoliza === 'N/A' ? 'N/A' : '❌'}</td>
                 <td>{contract.startDate ? new Date(contract.startDate).toLocaleDateString('es-CL') : '-'}</td>
-                <td>{contract.endDate ? new Date(contract.endDate).toLocaleDateString('es-CL') : '-'}</td>
+                <td>
+                  {getEffectiveEndDate(contract) ? (
+                    <span style={{ color: contract.otroSiEndDate ? '#1976d2' : 'inherit' }}>
+                      {new Date(getEffectiveEndDate(contract)!).toLocaleDateString('es-CL')}
+                      {contract.otroSiEndDate && <span title={`Original: ${new Date(contract.endDate!).toLocaleDateString('es-CL')}`}> 📌</span>}
+                    </span>
+                  ) : '-'}
+                </td>
                 <td>{formatCurrency(contract.value)}</td>
                 <td>{formatCurrency(contract.finalValue)}</td>
                 <td>{contract.advancePayment > 0 ? `${contract.advancePayment}%` : '-'}</td>

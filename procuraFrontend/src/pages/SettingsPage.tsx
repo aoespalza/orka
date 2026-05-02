@@ -120,7 +120,7 @@ export default function SettingsPage() {
 
   const loadPoliciesPreview = async () => {
     try {
-      const preview = await api.getPoliciesPreview(30);
+      const preview = await api.getPoliciesPreview(notificationDays);
       setPoliciesPreview(preview);
     } catch (e) {
       console.error('Error loading policies preview:', e);

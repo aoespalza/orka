@@ -239,7 +239,7 @@
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .policy-card-header {

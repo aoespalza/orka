@@ -240,6 +240,11 @@ class ApiClient {
     return response.data;
   }
 
+  async deleteSetting(key: string): Promise<any> {
+    const response = await this.client.delete<any>(`/settings/${key}`);
+    return response.data;
+  }
+
   async initializeSettings(): Promise<any> {
     const response = await this.client.post<any>('/settings/initialize');
     return response.data;

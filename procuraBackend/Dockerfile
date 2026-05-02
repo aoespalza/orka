@@ -13,6 +13,9 @@ RUN node node_modules/.bin/prisma generate
 
 RUN node node_modules/.bin/tsc
 
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x entrypoint.sh
+
 EXPOSE 3006
 
-CMD ["node", "dist/index.js"]
+CMD ["sh", "entrypoint.sh"]

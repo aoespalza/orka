@@ -53,6 +53,9 @@ class EmailService {
     try {
       console.log('[EmailService] Conectando a:', settings.host, 'puerto:', settings.port);
       
+      // Extraer el dominio del usuario autenticado para usarlo en EHLO
+      const ehloName = settings.auth.user.split('@')[1] || settings.host;
+
       this.transporter = nodemailer.createTransport({
         host: settings.host,
         port: settings.port,
@@ -60,7 +63,8 @@ class EmailService {
         auth: {
           user: settings.auth.user,
           pass: settings.auth.pass
-        }
+        },
+        name: ehloName  // EHLO correcto: el dominio del remitente, no 127.0.0.1
       });
       
       this.config = settings;
@@ -118,6 +122,12 @@ class EmailService {
   async isConfigured(): Promise<boolean> {
     const settings = await this.getSettings();
     return settings !== null;
+  }
+
+  reset(): void {
+    this.transporter = null;
+    this.config = null;
+    this.initialized = false;
   }
 
   // Generar hash para verificar email

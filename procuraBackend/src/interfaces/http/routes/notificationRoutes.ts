@@ -1,7 +1,10 @@
 import { Router, Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { authenticate, authorize } from '../../../shared/middleware/auth';
 import { notificationService } from '../../../infrastructure/services/notificationService';
 import { schedulerService } from '../../../infrastructure/services/schedulerService';
+
+const prisma = new PrismaClient();
 
 const router = Router();
 
@@ -36,7 +39,7 @@ const sendExpiryReminders = async (req: Request, res: Response) => {
 // GET /api/notifications/preview - Ver preview sin enviar
 const getPreview = async (req: Request, res: Response) => {
   try {
-    const days = parseInt(req.query.days as string) || 7;
+    const days = parseInt(req.query.days as string) || 30; // 30 días por defecto
     const preview = await notificationService.getPreview(days);
     const policies = await notificationService.getExpiringPolicies(30);
     
@@ -76,10 +79,12 @@ const getStatus = async (req: Request, res: Response) => {
     const { emailService } = require('../../../infrastructure/services/emailService');
     const isEmailConfigured = await emailService.isConfigured();
     const schedulerStatus = schedulerService.getStatus();
+    const expiryDaysSetting = await prisma?.setting?.findFirst?.({ where: { key: 'NOTIFICATION_EXPIRY_DAYS' } }) || null;
+    const expiryDays = expiryDaysSetting ? parseInt(expiryDaysSetting.value) : 30;
     
     res.json({
       emailConfigured: isEmailConfigured,
-      expiryDays: 7, // Default, se puede leer de settings
+      expiryDays,
       scheduler: {
         isRunning: schedulerStatus.isRunning,
         lastRun: schedulerStatus.lastRun,
